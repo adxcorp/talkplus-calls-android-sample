@@ -17,4 +17,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "talkplus-calls-android-sample"
 include(":app")
- 

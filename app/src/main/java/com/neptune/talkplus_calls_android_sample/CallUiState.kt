@@ -6,7 +6,10 @@ import io.talkplus.entity.user.TPUser
 
 sealed class CallUiState {
     data class Login(val tpUser: TPUser) : CallUiState()
-//    data class Join(val tpChannel: TPChannel) : CallUiState()
+    data class JoinChannel(val tpChannel: TPChannel) : CallUiState()
+    data class EnablePush(val tpUser: TPUser) : CallUiState()
+    data object RegisterToken : CallUiState()
+
 //    data class GetMessages(val getMessagesResult: GetMessageResult) : ChatUiState()
 //    data class SendMessage(val tpMessage: TPMessage) : ChatUiState()
 //    data class ReceiveMessage(val receiveCallbackResult: ReceiveCallbackResult) : ChatUiState()
@@ -17,6 +20,6 @@ sealed class CallUiState {
 //    data class GetUnMutedUser(val getUnMutedUserResult: ReceiveCallbackResult) : ChatUiState()
 //    data class GetBannedUser(val getBannedUserResult: ReceiveCallbackResult) : ChatUiState()
 //    data class GetUnBannedUser(val getUnBannedUserResult: ReceiveCallbackResult) : ChatUiState()
-    data class Fail(val failResult: WrappedFailResult) : CallUiState()
+    data class Failed(val failResult: WrappedFailResult) : CallUiState()
 //    object LeaveChannel : ChatUiState()
 }
