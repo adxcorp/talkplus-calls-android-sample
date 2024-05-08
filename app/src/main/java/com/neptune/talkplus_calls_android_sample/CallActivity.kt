@@ -41,6 +41,7 @@ class CallActivity : AppCompatActivity() {
     private val callViewModel: CallViewModel by lazy { ViewModelProvider(this)[CallViewModel::class.java] }
     private val signallingClient: SignalingClient by lazy { SignalingClient(createSignallingClientListener()) }
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    var sdp: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +68,10 @@ class CallActivity : AppCompatActivity() {
             is CallUiState.JoinChannel -> startConnect()
             is CallUiState.EnablePush -> callViewModel.getFCMToken()
             is CallUiState.RegisterToken -> callViewModel.joinChannel()
-            is CallUiState.Failed -> showToast(callUiState.failResult.toString())
+            is CallUiState.Failed -> {
+                Log.d(TAG, callUiState.failResult.toString())
+                showToast(callUiState.failResult.toString())
+            }
 
             // call
 
@@ -77,7 +81,23 @@ class CallActivity : AppCompatActivity() {
     private fun setClickListener() = with(binding) {
         ivAudio.setOnClickListener { toggleAudio() }
         ivVideo.setOnClickListener { toggleVideo() }
-        ivEndCall.setOnClickListener { endCall() }
+        ivEndCall.setOnClickListener {
+            rtcClient.endCall(
+                talkplusCall = callViewModel.talkPlusCall,
+                endReasonCode = 3,
+                endReasonMessage = "call canceled by caller"
+            )
+        }
+        btnOffer.setOnClickListener {
+            rtcClient.allocation()
+            rtcClient.makeCall(callViewModel.talkPlusCall)
+        }
+        btnAnswer.setOnClickListener {
+            CoroutineScope(Dispatchers.IO).launch {
+                offerReceive(sdp)
+                acceptCall(callViewModel.talkPlusCall)
+            }
+        }
     }
 
     private fun toggleVideo() {
@@ -94,10 +114,6 @@ class CallActivity : AppCompatActivity() {
             false -> binding.ivAudio.setBackgroundResource(R.drawable.ic_mic_off)
         }
         callViewModel.setLocalAudio(!callViewModel.isEnableLocalAudio)
-    }
-
-    private fun endCall() {
-        // TODO endCall 로직
     }
 
     private fun checkVideoCallPermissions() {
@@ -203,17 +219,12 @@ class CallActivity : AppCompatActivity() {
             super.onAddTrack(rtpReceiver, mediaStreams)
             if (mediaStreams[0].videoTracks.size != 0) {
                 mediaStreams[0].videoTracks[0].addSink(binding.surfaceRemote)
-                with(rtcClient) {
-                    enableVideo(true)
-                    enableAudio(true)
-                }
             }
         }
 
         override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
             Log.d(TAG, iceConnectionState.name.toString())
             if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
-//                callViewModel.setPeerConnected(true)
                 setSpeakerPhone()
             }
         }
@@ -228,6 +239,7 @@ class CallActivity : AppCompatActivity() {
             override fun onOfferReceived(description: SessionDescription) {
                 Log.d(TAG, "onOfferReceived")
                 rtcClient.onRemoteSessionReceived(description)
+                sdp = description.description
             }
 
             override fun onAnswerReceived(description: SessionDescription) {
@@ -250,27 +262,17 @@ class CallActivity : AppCompatActivity() {
             }
 
             override fun onCallEnded() {
-                val sendCandidates: Array<IceCandidate?> = arrayOfNulls(rtcClient.sendCandidate.size)
-                val receiveCandidates: Array<IceCandidate?> = arrayOfNulls(rtcClient.receiveCandidate.size)
-                with(rtcClient) {
-                    sendCandidate.forEachIndexed { index, candidate -> sendCandidates[index] = candidate }
-                    receiveCandidate.forEachIndexed { index, candidate -> receiveCandidates[index] = candidate }
-                    peerConnection.removeIceCandidates(sendCandidates)
-                    peerConnection.removeIceCandidates(receiveCandidates)
-                    sendCandidate.clear()
-                    receiveCandidate.clear()
-                }
-                binding.surfaceRemote.release()
-                rtcClient.initSurfaceView(binding.surfaceRemote)
                 finish()
             }
 
             override fun onCallCanceled() {
-
+                Log.d(TAG, "onCallCanceled")
+                rtcClient.deAllocation()
+                rtcClient.allocation()
             }
 
             override fun onCallDeclined() {
-
+                finish()
             }
         }
     }
@@ -287,8 +289,9 @@ class CallActivity : AppCompatActivity() {
         if (intent.hasExtra(INTENT_EXTRA_NOTIFICATION_PAYLOAD)) {
             // TODO 확장함수 호ㅏ
             val notificationManager = application.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancel(MyFirebaseMessagingService.NOTIFICATION_ID)
+            notificationManager.cancel(TPFirebaseMessagingService.NOTIFICATION_ID)
             with(callViewModel) {
+                // TODO 추상화
                 CoroutineScope(Dispatchers.IO).launch {
                     offerReceive(sdp)
                     acceptCall(talkPlusCall)
@@ -299,11 +302,11 @@ class CallActivity : AppCompatActivity() {
         }
     }
 
-    private fun offerReceive(sdp: String) {
+    private suspend fun offerReceive(sdp: String) {
         signallingClient.offerReceive(sdp)
     }
 
-    private fun acceptCall(talkPlusCall: TalkPlusCall) {
+    private suspend fun acceptCall(talkPlusCall: TalkPlusCall) {
         rtcClient.acceptCall(talkPlusCall)
     }
 

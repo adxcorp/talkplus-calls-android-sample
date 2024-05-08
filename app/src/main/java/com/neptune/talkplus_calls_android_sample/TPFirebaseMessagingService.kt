@@ -15,7 +15,7 @@ import io.talkplus.TalkPlus
 import io.talkplus.entity.user.TPNotificationPayload
 import org.json.JSONObject
 
-class MyFirebaseMessagingService : FirebaseMessagingService() {
+class TPFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
     }
@@ -26,7 +26,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (remoteMessage.data.containsKey("talkplus")) {
             val pushNotificationResponse: JSONObject = remoteMessage.data["talkplus"]?.let { JSONObject(it) } ?: return
             when (pushNotificationResponse.getString("type")) {
-                "offer" -> inComing(pushNotificationResponse.getString("notificationLink"))
+                "offer" -> {
+                    if (!isCalling) {
+                        inComing(pushNotificationResponse.getString("notificationLink"))
+                        isCalling = true
+                        return
+                    }
+                }
                 "endCall" -> removeNotificationUi()
             }
         }
@@ -47,9 +53,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             putExtra(CallActivity.INTENT_EXTRA_NOTIFICATION_PAYLOAD, tpNotificationPayload)
         }
 
-//        val declineIntent: Intent = Intent(this, DeclinedActivity::class.java).apply {
-//            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-//        }
+        val declineIntent: Intent = Intent(this, DeclineActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra(DeclineActivity.INTENT_EXTRA_NOTIFICATION_PAYLOAD, tpNotificationPayload)
+        }
+
 
         val notificationBuilder: NotificationCompat.Builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("TalkPlus")
@@ -58,8 +66,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setSmallIcon(android.R.drawable.sym_action_call)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
-            .addAction(setNotificationAction(title = "수락", type = acceptIntent, code = 0))
-//            .addAction(setNotificationAction(title = "거절", type = declineIntent, code = RtcActivity.DECLINE_REQUEST_CODE))
+            .addAction(setNotificationAction(title = "수락", type = acceptIntent))
+            .addAction(setNotificationAction(title = "거절", type = declineIntent))
         NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notificationBuilder.build())
     }
 
@@ -77,7 +85,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun setNotificationAction(
         title: String,
         type: Intent,
-        code: Int
+        code: Int = 0
     ): NotificationCompat.Action {
         return NotificationCompat.Action(
             androidx.core.R.drawable.notification_bg,
@@ -101,5 +109,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         const val CHANNEL_ID: String = "TalkPlusCallas"
         const val NOTIFICATION_ID = 1
+
+        var isCalling = false
     }
 }
