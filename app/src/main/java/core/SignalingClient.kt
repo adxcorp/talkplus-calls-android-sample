@@ -14,6 +14,9 @@ import org.webrtc.SessionDescription
 //
 
 class SignalingClient(private val signalingClientListener: SignalingClientListener) {
+    init {
+        connect()
+    }
      fun connect() {
         Log.d(TAG, "start connect")
         TalkPlusImpl.sendType.observe(ProcessLifecycleOwner.get()) { payload: Map<String, Any> ->

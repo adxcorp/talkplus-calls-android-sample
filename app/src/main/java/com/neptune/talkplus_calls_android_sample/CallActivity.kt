@@ -39,7 +39,6 @@ class CallActivity : AppCompatActivity() {
     private val binding: ActivityCallBinding by lazy { ActivityCallBinding.inflate(layoutInflater) }
     private val rtcClient: RtcClient by lazy { setRtcClient() }
     private val callViewModel: CallViewModel by lazy { ViewModelProvider(this)[CallViewModel::class.java] }
-    private val signallingClient: SignalingClient by lazy { SignalingClient(createSignallingClientListener()) }
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     var sdp: String = ""
 
@@ -88,16 +87,6 @@ class CallActivity : AppCompatActivity() {
                 endReasonMessage = "call canceled by caller"
             )
         }
-        btnOffer.setOnClickListener {
-            rtcClient.allocation()
-            rtcClient.makeCall(callViewModel.talkPlusCall)
-        }
-        btnAnswer.setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
-                offerReceive(sdp)
-                acceptCall(callViewModel.talkPlusCall)
-            }
-        }
     }
 
     private fun toggleVideo() {
@@ -138,10 +127,10 @@ class CallActivity : AppCompatActivity() {
                             callerId = payload.callerId,
                             calleeId = payload.calleeId,
                             channelId = payload.channelId,
-                            uuid = payload.uuid
+                            uuid = payload.uuid,
+                            sdp = payload.sdp
                         )
                     )
-                    callViewModel.setSdp(payload.sdp)
                 } ?: showToast("payload is null")
             }
             false -> {
@@ -192,123 +181,27 @@ class CallActivity : AppCompatActivity() {
     private fun setRtcClient(): RtcClient  {
         return RtcClient(
             this@CallActivity,
-            peerConnectionObserver(),
-            callViewModel.connectionConfig
+            callViewModel.connectionConfig,
+            callViewModel.talkPlusCall
         )
     }
 
-    private fun peerConnectionObserver(): PeerConnectionObserver = object : PeerConnectionObserver() {
-        override fun onIceCandidate(iceCandidate: IceCandidate) {
-            // offer, answer로 분기
-            when (intent.hasExtra(INTENT_EXTRA_NOTIFICATION_PAYLOAD)) {
-                true -> signallingClient.sendIceCandidate(
-                    candidate = iceCandidate,
-                    targetUserId = callViewModel.talkPlusCall.callerId,
-                    channelId = TEST_CHANNEL_ID,
-                    uuid = callViewModel.talkPlusCall.uuid
-                )
-                false -> rtcClient.sendCandidate.add(iceCandidate)
-            }
-        }
-
-        override fun onIceGatheringChange(gatheringChange: PeerConnection.IceGatheringState) {
-            Log.d(TAG, "onIceGatheringChange ${gatheringChange.name}")
-        }
-
-        override fun onAddTrack(rtpReceiver: RtpReceiver, mediaStreams: Array<MediaStream>) {
-            super.onAddTrack(rtpReceiver, mediaStreams)
-            if (mediaStreams[0].videoTracks.size != 0) {
-                mediaStreams[0].videoTracks[0].addSink(binding.surfaceRemote)
-            }
-        }
-
-        override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
-            Log.d(TAG, iceConnectionState.name.toString())
-            if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
-                setSpeakerPhone()
-            }
-        }
-    }
-
-    private fun createSignallingClientListener(): SignalingClientListener {
-        return object : SignalingClientListener {
-            override fun onConnectionEstablished() {
-                Log.d(TAG, "onConnectionEstablished")
-            }
-
-            override fun onOfferReceived(description: SessionDescription) {
-                Log.d(TAG, "onOfferReceived")
-                rtcClient.onRemoteSessionReceived(description)
-                sdp = description.description
-            }
-
-            override fun onAnswerReceived(description: SessionDescription) {
-                Log.d(TAG, "onAnswerReceived")
-                rtcClient.onRemoteSessionReceived(description)
-                rtcClient.sendCandidate.forEach { iceCandidate ->
-                    signallingClient.sendIceCandidate(
-                        candidate = iceCandidate,
-                        targetUserId = callViewModel.talkPlusCall.calleeId,
-                        channelId = TEST_CHANNEL_ID,
-                        uuid = callViewModel.talkPlusCall.uuid
-                    )
-                }
-            }
-
-            override fun onIceCandidateReceived(iceCandidate: IceCandidate) {
-                Log.d(TAG, "onIceCandidateReceived : $iceCandidate")
-                rtcClient.receiveCandidate.add(iceCandidate)
-                rtcClient.addIceCandidate(iceCandidate)
-            }
-
-            override fun onCallEnded() {
-                finish()
-            }
-
-            override fun onCallCanceled() {
-                Log.d(TAG, "onCallCanceled")
-                rtcClient.deAllocation()
-                rtcClient.allocation()
-            }
-
-            override fun onCallDeclined() {
-                finish()
-            }
-        }
-    }
-
     private fun startConnect() {
-        Log.d(TAG, "makeCall()")
-        signallingClient.connect()
         with(rtcClient) {
-            initSurfaceView(binding.surfaceRemote)
-            initSurfaceView(binding.surfaceLocal)
-            startLocalVideoCapture(binding.surfaceLocal)
+            setLocalVideo(binding.surfaceLocal)
+            setRemoteVideo(binding.surfaceRemote)
         }
 
         if (intent.hasExtra(INTENT_EXTRA_NOTIFICATION_PAYLOAD)) {
             // TODO 확장함수 호ㅏ
             val notificationManager = application.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(TPFirebaseMessagingService.NOTIFICATION_ID)
-            with(callViewModel) {
-                // TODO 추상화
-                CoroutineScope(Dispatchers.IO).launch {
-                    offerReceive(sdp)
-                    acceptCall(talkPlusCall)
-                }
-            }
+            rtcClient.acceptCall()
         } else {
             rtcClient.makeCall(callViewModel.talkPlusCall)
         }
     }
 
-    private suspend fun offerReceive(sdp: String) {
-        signallingClient.offerReceive(sdp)
-    }
-
-    private suspend fun acceptCall(talkPlusCall: TalkPlusCall) {
-        rtcClient.acceptCall(talkPlusCall)
-    }
 
     private fun setSpeakerPhone() {
         audioManager.isSpeakerphoneOn = true

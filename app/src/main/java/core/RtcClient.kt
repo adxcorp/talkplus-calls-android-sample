@@ -3,6 +3,10 @@ package com.neptune.talkpluscallsandroid.webrtc.core
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import com.neptune.talkplus_calls_android_sample.CallActivity
+import com.neptune.talkplus_calls_android_sample.Constant
+import com.neptune.talkpluscallsandroid.webrtc.events.PeerConnectionObserver
+import com.neptune.talkpluscallsandroid.webrtc.events.SignalingClientListener
 import com.neptune.talkpluscallsandroid.webrtc.model.RTCConnectionConfig
 import com.neptune.talkpluscallsandroid.webrtc.model.SignalingMessageType
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
@@ -18,8 +22,10 @@ import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
 import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
+import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
+import org.webrtc.RtpReceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.SurfaceTextureHelper
@@ -39,8 +45,8 @@ import java.lang.Exception
 
 class RtcClient(
     private val context: Context,
-    private val observer: PeerConnection.Observer,
-    private val rtcConnectionConfig: RTCConnectionConfig
+    private val rtcConnectionConfig: RTCConnectionConfig,
+    private val talkplusCall: TalkPlusCall
 ) {
     init {
         initPeerConnectionFactory()
@@ -52,10 +58,14 @@ class RtcClient(
      * WebRTC에서 주로 비디오 프레임 렌더링에 사용됨.
      * **/
     private val rootEglBase: EglBase = EglBase.create()
+    var type: String = ""
 
     private var videoCapturer: VideoCapturer = getVideoCapturer()
     private var peerConnectionFactory: PeerConnectionFactory? = buildPeerConnectionFactory()
     var peerConnection: PeerConnection? = buildPeerConnection()
+
+    private val signallingClient: SignalingClient = SignalingClient(createSignallingClientListener())
+    private var remoteSurfaceView: SurfaceViewRenderer? = null
 
     private var localVideoSource: VideoSource = peerConnectionFactory!!.createVideoSource(false)
     private var audioSource = peerConnectionFactory!!.createAudioSource(MediaConstraints())
@@ -100,10 +110,20 @@ class RtcClient(
                 .createIceServer()
             )
         }
-        return peerConnectionFactory!!.createPeerConnection(icesServers, observer) ?: error("error")
+        return peerConnectionFactory!!.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("error")
     }
 
-     fun initSurfaceView(surfaceViewRenderer: SurfaceViewRenderer) {
+    fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
+        initSurfaceView(surfaceViewRenderer)
+        startLocalVideoCapture(surfaceViewRenderer)
+    }
+
+    fun setRemoteVideo(surfaceViewRenderer: SurfaceViewRenderer) {
+        initSurfaceView(surfaceViewRenderer)
+        remoteSurfaceView = surfaceViewRenderer
+    }
+
+     private fun initSurfaceView(surfaceViewRenderer: SurfaceViewRenderer) {
         Log.d(TAG, "initSurfaceView")
         with(surfaceViewRenderer) {
             setMirror(true)
@@ -112,7 +132,7 @@ class RtcClient(
         }
     }
 
-     fun startLocalVideoCapture(localVideoOutput: SurfaceViewRenderer) {
+    private fun startLocalVideoCapture(localVideoOutput: SurfaceViewRenderer) {
         Log.d(TAG, "startLocalVideoCapture")
         val surfaceTextureHelper: SurfaceTextureHelper =
             SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
@@ -149,6 +169,7 @@ class RtcClient(
     // createOffer
      fun makeCall(talkplusCall: TalkPlusCall) {
         Log.d(TAG, "createOffer")
+        type = "offer"
         val mediaConstraints: MediaConstraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
         }
@@ -161,7 +182,6 @@ class RtcClient(
                         talkplusCall = talkplusCall
                     )
                     setLocalDescription(sessionDescription)
-                    Log.d(TAG, sessionDescription.description.toByteArray().size.toString())
                 }
 
                 override fun onSetSuccess() { Log.d(TAG, "createOffer onCreateFailure") }
@@ -194,7 +214,9 @@ class RtcClient(
     }
 
     // createAnswer
-     fun acceptCall(talkplusCall: TalkPlusCall) {
+     fun acceptCall() {
+        type = "answer"
+        signallingClient.offerReceive(talkplusCall.sdp)
         Log.d(TAG, "createAnswer")
         val mediaConstraints: MediaConstraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
@@ -320,6 +342,87 @@ class RtcClient(
             override fun onCreateFailure(reason: String) { Log.d(TAG, "offer setLocalDescription onCreateFailure") }
             override fun onSetFailure(reason: String) { Log.d(TAG, "offer setLocalDescription onSetFailure") }
         }, sessionDescription)
+    }
+
+    private fun createSignallingClientListener(): SignalingClientListener {
+        return object : SignalingClientListener {
+            override fun onConnectionEstablished() {
+                Log.d(TAG, "onConnectionEstablished")
+            }
+
+            override fun onOfferReceived(description: SessionDescription) {
+                Log.d(TAG, "onOfferReceived")
+                onRemoteSessionReceived(description)
+            }
+
+            override fun onAnswerReceived(description: SessionDescription) {
+                Log.d(TAG, "onAnswerReceived")
+                onRemoteSessionReceived(description)
+                sendCandidate.forEach { iceCandidate ->
+                    signallingClient.sendIceCandidate(
+                        candidate = iceCandidate,
+                        targetUserId = talkplusCall.calleeId,
+                        channelId = talkplusCall.channelId,
+                        uuid = talkplusCall.uuid
+                    )
+                }
+            }
+
+            override fun onIceCandidateReceived(iceCandidate: IceCandidate) {
+                Log.d(TAG, "onIceCandidateReceived : $iceCandidate")
+                receiveCandidate.add(iceCandidate)
+                addIceCandidate(iceCandidate)
+            }
+
+            override fun onCallEnded() {
+//                finish()
+            }
+
+            override fun onCallCanceled() {
+//                Log.d(CallActivity.TAG, "onCallCanceled")
+//                rtcClient.deAllocation()
+//                rtcClient.allocation()
+            }
+
+            override fun onCallDeclined() {
+//                finish()
+            }
+        }
+    }
+
+    private fun peerConnectionObserver(): PeerConnectionObserver = object : PeerConnectionObserver() {
+        override fun onIceCandidate(iceCandidate: IceCandidate) {
+            // offer, answer로 분기
+            when (type) {
+                "offer" -> sendCandidate.add(iceCandidate)
+                "answer" -> signallingClient.sendIceCandidate(
+                    candidate = iceCandidate,
+                    targetUserId = talkplusCall.callerId,
+                    channelId = talkplusCall.channelId,
+                    uuid = talkplusCall.uuid
+                )
+            }
+        }
+
+        override fun onIceGatheringChange(gatheringChange: PeerConnection.IceGatheringState) {
+            Log.d(TAG, "onIceGatheringChange ${gatheringChange.name}")
+        }
+
+        override fun onAddTrack(rtpReceiver: RtpReceiver, mediaStreams: Array<MediaStream>) {
+            super.onAddTrack(rtpReceiver, mediaStreams)
+            Log.d(TAG, mediaStreams[0].videoTracks.size.toString())
+
+            if (mediaStreams[0].videoTracks.size != 0) {
+                mediaStreams[0].videoTracks[0].addSink(remoteSurfaceView)
+            }
+        }
+
+        override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
+            Log.d(TAG, iceConnectionState.name.toString())
+            if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
+
+            }
+        }
     }
 
     companion object {
