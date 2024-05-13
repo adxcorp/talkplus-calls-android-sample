@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
 import io.talkplus.TalkPlus
 import io.talkplus.entity.user.TPNotificationPayload
 import org.json.JSONObject
@@ -33,7 +34,7 @@ class TPFirebaseMessagingService : FirebaseMessagingService() {
                         return
                     }
                 }
-                "endCall" -> removeNotificationUi()
+                "endCall" -> closeNotification()
             }
         }
     }
@@ -97,11 +98,6 @@ class TPFirebaseMessagingService : FirebaseMessagingService() {
                 PendingIntent.FLAG_IMMUTABLE + PendingIntent.FLAG_UPDATE_CURRENT
             )
         )
-    }
-
-    private fun removeNotificationUi() {
-        val notificationManager = application.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(NOTIFICATION_ID)
     }
 
     companion object {

@@ -17,6 +17,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.neptune.talkplus_calls_android_sample.Constant.TEST_CHANNEL_ID
 import com.neptune.talkplus_calls_android_sample.databinding.ActivityCallBinding
 import com.neptune.talkplus_calls_android_sample.extensions.checkPermissionsGranted
+import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
 import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
 import com.neptune.talkplus_calls_android_sample.extensions.requirePermission
 import com.neptune.talkplus_calls_android_sample.extensions.showToast
@@ -40,7 +41,6 @@ class CallActivity : AppCompatActivity() {
     private val rtcClient: RtcClient by lazy { setRtcClient() }
     private val callViewModel: CallViewModel by lazy { ViewModelProvider(this)[CallViewModel::class.java] }
     private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    var sdp: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,18 +62,11 @@ class CallActivity : AppCompatActivity() {
 
     private fun handleCallUiState(callUiState: CallUiState) {
         when (callUiState) {
-            // auth
             is CallUiState.Login -> callViewModel.enablePushNotification()
             is CallUiState.JoinChannel -> startConnect()
             is CallUiState.EnablePush -> callViewModel.getFCMToken()
             is CallUiState.RegisterToken -> callViewModel.joinChannel()
-            is CallUiState.Failed -> {
-                Log.d(TAG, callUiState.failResult.toString())
-                showToast(callUiState.failResult.toString())
-            }
-
-            // call
-
+            is CallUiState.Failed -> showToast(callUiState.failResult.toString())
         }
     }
 
@@ -94,6 +87,7 @@ class CallActivity : AppCompatActivity() {
             true -> binding.ivVideo.setBackgroundResource(R.drawable.ic_video_off)
             false -> binding.ivVideo.setBackgroundResource(R.drawable.ic_video_on)
         }
+        rtcClient.enableVideo(!callViewModel.isEnableLocalVideo)
         callViewModel.setLocalVideo(!callViewModel.isEnableLocalVideo)
     }
 
@@ -102,6 +96,7 @@ class CallActivity : AppCompatActivity() {
             true -> binding.ivAudio.setBackgroundResource(R.drawable.ic_mic_on)
             false -> binding.ivAudio.setBackgroundResource(R.drawable.ic_mic_off)
         }
+        rtcClient.enableAudio(!callViewModel.isEnableLocalAudio)
         callViewModel.setLocalAudio(!callViewModel.isEnableLocalAudio)
     }
 
@@ -178,7 +173,7 @@ class CallActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, permissions, CAMERA_AUDIO_PERMISSION_REQUEST_CODE)
     }
 
-    private fun setRtcClient(): RtcClient  {
+    private fun setRtcClient(): RtcClient {
         return RtcClient(
             this@CallActivity,
             callViewModel.connectionConfig,
@@ -193,9 +188,7 @@ class CallActivity : AppCompatActivity() {
         }
 
         if (intent.hasExtra(INTENT_EXTRA_NOTIFICATION_PAYLOAD)) {
-            // TODO 확장함수 호ㅏ
-            val notificationManager = application.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancel(TPFirebaseMessagingService.NOTIFICATION_ID)
+            closeNotification()
             rtcClient.acceptCall()
         } else {
             rtcClient.makeCall(callViewModel.talkPlusCall)
