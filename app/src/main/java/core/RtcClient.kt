@@ -68,11 +68,11 @@ internal class RtcClient(
     )
     private var remoteSurfaceView: SurfaceViewRenderer? = null
 
-    private var localVideoSource: VideoSource = peerConnectionFactory!!.createVideoSource(false)
-    private var audioSource = peerConnectionFactory!!.createAudioSource(MediaConstraints())
+    private var localVideoSource: VideoSource = peerConnectionFactory?.createVideoSource(false) ?: error("failed createVideoSource")
+    private var audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints()) ?: error("failed createAudioSource")
 
-    private var localAudioTrack: AudioTrack = peerConnectionFactory!!.createAudioTrack("local_track" + "_audio", audioSource)
-    private var localVideoTrack: VideoTrack = peerConnectionFactory!!.createVideoTrack("local_track", localVideoSource)
+    private var localAudioTrack: AudioTrack = peerConnectionFactory?.createAudioTrack("local_track" + "_audio", audioSource) ?: error("")
+    private var localVideoTrack: VideoTrack = peerConnectionFactory?.createVideoTrack("local_track", localVideoSource) ?: error("")
 
     private val sendCandidate: ArrayList<IceCandidate> = arrayListOf()
     private val receiveCandidate: ArrayList<IceCandidate> = arrayListOf()
@@ -115,7 +115,7 @@ internal class RtcClient(
                 .createIceServer()
             )
         }
-        return peerConnectionFactory!!.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("error")
+        return peerConnectionFactory?.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("error")
     }
 
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -275,9 +275,11 @@ internal class RtcClient(
     }
 
     fun addIceCandidate(iceCandidate: IceCandidate) {
-        if (!peerConnection?.addIceCandidate(iceCandidate)!!) {
-            receiveCandidate.add(iceCandidate)
-        }
+        peerConnection?.let { peer ->
+            if (!peer.addIceCandidate(iceCandidate)) {
+                receiveCandidate.add(iceCandidate)
+            }
+        } ?: error("peerConnection is null")
     }
 
     fun enableVideo(videoEnabled: Boolean) {
@@ -321,10 +323,10 @@ internal class RtcClient(
         initPeerConnectionFactory()
         peerConnectionFactory = buildPeerConnectionFactory()
         peerConnection = buildPeerConnection()
-        localVideoSource = peerConnectionFactory!!.createVideoSource(false)
-        audioSource = peerConnectionFactory!!.createAudioSource(MediaConstraints())
-        localAudioTrack = peerConnectionFactory!!.createAudioTrack("local_track" + "_audio", audioSource)
-        localVideoTrack = peerConnectionFactory!!.createVideoTrack("local_track", localVideoSource)
+        localVideoSource = peerConnectionFactory?.createVideoSource(false) ?: error("")
+        audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints()) ?: error("")
+        localAudioTrack = peerConnectionFactory?.createAudioTrack("local_track" + "_audio", audioSource) ?: error("")
+        localVideoTrack = peerConnectionFactory?.createVideoTrack("local_track", localVideoSource) ?: error("")
     }
 
     private fun PeerConnection.setLocalDescription(sessionDescription: SessionDescription) {
