@@ -3,23 +3,18 @@ package com.neptune.talkpluscallsandroid.webrtc.core
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
-import com.neptune.talkplus_calls_android_sample.CallActivity
-import com.neptune.talkplus_calls_android_sample.Constant
 import com.neptune.talkpluscallsandroid.webrtc.events.PeerConnectionObserver
 import com.neptune.talkpluscallsandroid.webrtc.events.SignalingClientListener
 import com.neptune.talkpluscallsandroid.webrtc.model.RTCConnectionConfig
 import com.neptune.talkpluscallsandroid.webrtc.model.SignalingMessageType
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import com.neptune.talkpluscallsandroid.webrtc.model.WebRTCMessageType
-import io.talkplus.TalkPlus
-import io.talkplus.TalkPlus.CallbackListener
-import io.talkplus.entity.user.TPNotificationPayload
-import io.talkplus.entity.user.TPRtcConfiguration
+import events.DirectCallListener
 import io.talkplus.internal.api.TalkPlusImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import model.EndCallInfo
 import org.webrtc.AudioTrack
 import org.webrtc.Camera2Enumerator
 import org.webrtc.DefaultVideoDecoderFactory
@@ -38,9 +33,6 @@ import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoCapturer
 import org.webrtc.VideoSource
 import org.webrtc.VideoTrack
-import java.lang.Exception
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * WebRTC 라이브러리의 기본 객체들을 초기화하고, 핸들링 합니다.
@@ -52,7 +44,8 @@ import kotlin.coroutines.resumeWithException
 internal class RtcClient(
     private val context: Context,
     private val talkplusCall: TalkPlusCall,
-    private val rtcConnectionConfig: RTCConnectionConfig
+    private val rtcConnectionConfig: RTCConnectionConfig,
+    private val directCallListener: DirectCallListener
 ) {
     init {
         initPeerConnectionFactory()
@@ -64,13 +57,15 @@ internal class RtcClient(
      * WebRTC에서 주로 비디오 프레임 렌더링에 사용됨.
      * **/
     private val rootEglBase: EglBase = EglBase.create()
-    var type: String = ""
+    private var type: String = ""
 
     private var videoCapturer: VideoCapturer = getVideoCapturer()
     private var peerConnectionFactory: PeerConnectionFactory? = buildPeerConnectionFactory()
-    var peerConnection: PeerConnection? = buildPeerConnection()
+    private var peerConnection: PeerConnection? = buildPeerConnection()
 
-    private val signallingClient: SignalingClient = SignalingClient(createSignallingClientListener())
+    private val signallingClient: SignalingClient = SignalingClient(
+        createSignallingClientListener(),
+    )
     private var remoteSurfaceView: SurfaceViewRenderer? = null
 
     private var localVideoSource: VideoSource = peerConnectionFactory!!.createVideoSource(false)
@@ -79,8 +74,8 @@ internal class RtcClient(
     private var localAudioTrack: AudioTrack = peerConnectionFactory!!.createAudioTrack("local_track" + "_audio", audioSource)
     private var localVideoTrack: VideoTrack = peerConnectionFactory!!.createVideoTrack("local_track", localVideoSource)
 
-    val sendCandidate: ArrayList<IceCandidate> = arrayListOf()
-    val receiveCandidate: ArrayList<IceCandidate> = arrayListOf()
+    private val sendCandidate: ArrayList<IceCandidate> = arrayListOf()
+    private val receiveCandidate: ArrayList<IceCandidate> = arrayListOf()
 
     private fun initPeerConnectionFactory() {
         val options: PeerConnectionFactory.InitializationOptions = PeerConnectionFactory.InitializationOptions.builder(context)
@@ -89,19 +84,6 @@ internal class RtcClient(
             .createInitializationOptions()
         PeerConnectionFactory.initialize(options)
     }
-
-    suspend fun getWebRtcConfigurationSync(): TPRtcConfiguration = suspendCancellableCoroutine { continuation ->
-        TalkPlus.getWebRtcConfiguration(object : TalkPlus.CallbackListener<TPRtcConfiguration> {
-            override fun onSuccess(tpRtcConfiguration: TPRtcConfiguration) {
-                continuation.resume(tpRtcConfiguration)
-            }
-
-            override fun onFailure(errorCode: Int, exception: Exception) {
-                continuation.resumeWithException(exception)
-            }
-        })
-    }
-
 
     private fun buildPeerConnectionFactory(): PeerConnectionFactory {
         val peerConnectOptions: PeerConnectionFactory.Options = PeerConnectionFactory.Options().apply {
@@ -120,7 +102,7 @@ internal class RtcClient(
         val icesServers: ArrayList<PeerConnection.IceServer> = arrayListOf()
 
         stunServerUris.forEach { stunServerUri ->
-            icesServers.add(org.webrtc.PeerConnection.IceServer.builder(stunServerUri).createIceServer())
+            icesServers.add(PeerConnection.IceServer.builder(stunServerUri).createIceServer())
         }
 
         turnServerUris.forEach { turnServerUri ->
@@ -132,30 +114,6 @@ internal class RtcClient(
             )
         }
         return peerConnectionFactory!!.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("error")
-    }
-
-    private suspend fun setIceServers(): ArrayList<PeerConnection.IceServer> {
-        val icesServers: ArrayList<PeerConnection.IceServer> = arrayListOf()
-        val tpRtcConfiguration = getWebRtcConfigurationSync()
-        val rtcConnectionConfig = RTCConnectionConfig(
-            turnUsername = tpRtcConfiguration.turnUsername,
-            turnPassword = tpRtcConfiguration.turnPassword,
-            stunServerUris = tpRtcConfiguration.stunServerUris,
-            turnServerUris = tpRtcConfiguration.turnServerUris
-        )
-
-        rtcConnectionConfig.stunServerUris.forEach { stunServerUri ->
-            icesServers.add(PeerConnection.IceServer.builder(stunServerUri).createIceServer())
-        }
-
-        rtcConnectionConfig.turnServerUris.forEach { turnServerUri ->
-            icesServers.add(PeerConnection.IceServer.builder(turnServerUri)
-                .setUsername(rtcConnectionConfig.turnUsername)
-                .setPassword(rtcConnectionConfig.turnPassword)
-                .createIceServer()
-            )
-        }
-        return icesServers
     }
 
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -386,6 +344,9 @@ internal class RtcClient(
             override fun onOfferReceived(description: SessionDescription) {
                 Log.d(TAG, "onOfferReceived")
                 onRemoteSessionReceived(description)
+                CoroutineScope(Dispatchers.Main).launch {
+                    directCallListener.inComing(talkplusCall)
+                }
             }
 
             override fun onAnswerReceived(description: SessionDescription) {
@@ -407,18 +368,20 @@ internal class RtcClient(
                 addIceCandidate(iceCandidate)
             }
 
-            override fun onCallEnded() {
-//                finish()
-            }
-
-            override fun onCallCanceled() {
-//                Log.d(CallActivity.TAG, "onCallCanceled")
-//                rtcClient.deAllocation()
-//                rtcClient.allocation()
-            }
-
-            override fun onCallDeclined() {
-//                finish()
+            override fun onCallEnded(
+                reasonCode: Int,
+                reasonMessage: String
+            ) {
+                val endCallInfo: EndCallInfo = EndCallInfo(
+                    channelId = talkplusCall.channelId,
+                    callerId = talkplusCall.callerId,
+                    calleeId = talkplusCall.calleeId,
+                    endReasonCode = reasonCode,
+                    endReasonMessage = reasonMessage
+                )
+                CoroutineScope(Dispatchers.Main).launch {
+                    directCallListener.ended(endCallInfo)
+                }
             }
         }
     }
@@ -453,7 +416,9 @@ internal class RtcClient(
         override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
             Log.d(TAG, iceConnectionState.name.toString())
             if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
-
+                CoroutineScope(Dispatchers.Main).launch {
+                    directCallListener.connected(talkplusCall)
+                }
             }
         }
     }

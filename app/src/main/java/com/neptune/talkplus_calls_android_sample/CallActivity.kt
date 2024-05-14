@@ -1,6 +1,8 @@
 package com.neptune.talkplus_calls_android_sample
 
 import android.Manifest
+import android.content.Context
+import android.media.AudioManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
@@ -17,16 +19,18 @@ import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
 import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
 import com.neptune.talkplus_calls_android_sample.extensions.requirePermission
 import com.neptune.talkplus_calls_android_sample.extensions.showToast
+import com.neptune.talkpluscallsandroid.webrtc.model.EndCallStatus
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import core.TPWebRTCClient
+import events.DirectCallListener
 import io.talkplus.entity.user.TPNotificationPayload
 import kotlinx.coroutines.launch
+import model.EndCallInfo
 
 class CallActivity : AppCompatActivity() {
     private val binding: ActivityCallBinding by lazy { ActivityCallBinding.inflate(layoutInflater) }
     private lateinit var tpWebRTCClient: TPWebRTCClient
     private val callViewModel: CallViewModel by lazy { ViewModelProvider(this)[CallViewModel::class.java] }
-//    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,14 +63,7 @@ class CallActivity : AppCompatActivity() {
     private fun setClickListener() = with(binding) {
         ivAudio.setOnClickListener { toggleAudio() }
         ivVideo.setOnClickListener { toggleVideo() }
-        ivEndCall.setOnClickListener {
-//            rtcClient.endCall(
-//                talkplusCall = callViewModel.talkPlusCall,
-//                endReasonCode = 3,
-//                endReasonMessage = "call canceled by caller"
-//            )
-            tpWebRTCClient.endCall()
-        }
+        ivEndCall.setOnClickListener { tpWebRTCClient.endCall() }
     }
 
     private fun toggleVideo() {
@@ -162,7 +159,10 @@ class CallActivity : AppCompatActivity() {
     }
 
     private fun setTpWebRTCClient(): TPWebRTCClient {
-        return TPWebRTCClient(callViewModel.talkPlusCall)
+        return TPWebRTCClient(
+            callViewModel.talkPlusCall,
+            directCallListener
+        )
     }
 
     private fun startConnect() {
@@ -179,12 +179,43 @@ class CallActivity : AppCompatActivity() {
         }
     }
 
+    private val directCallListener: DirectCallListener = object : DirectCallListener {
+        override fun inComing(talkPlusCall: TalkPlusCall) {
 
-//    private fun setSpeakerPhone() {
-//        audioManager.isSpeakerphoneOn = true
-//        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-//        volumeControlStream = AudioManager.STREAM_VOICE_CALL
-//    }
+        }
+
+        override fun connected(talkPlusCall: TalkPlusCall) {
+            setSpeakerPhone()
+        }
+
+        override fun ended(endCallInfo: EndCallInfo) {
+            when (endCallInfo.endReasonCode) {
+                EndCallStatus.UNKNOWN.code -> { showToast("비정상 종료")}
+                EndCallStatus.COMPLETED.code -> { showToast("정상 종료") }
+                EndCallStatus.DECLINED.code -> { showToast("callee가 거절") }
+                EndCallStatus.CANCELED.code -> { showToast("caller가 거절") }
+            }
+        }
+
+        override fun failed() {
+
+        }
+
+        override fun stateChanged() {
+
+        }
+
+        override fun error() {
+
+        }
+    }
+
+    fun setSpeakerPhone() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.isSpeakerphoneOn = true
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+    }
 
     companion object {
         private const val TAG = "CallActivity!!"

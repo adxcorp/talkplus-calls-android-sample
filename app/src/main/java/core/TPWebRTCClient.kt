@@ -3,6 +3,7 @@ package core
 import com.neptune.talkpluscallsandroid.webrtc.core.RtcClient
 import com.neptune.talkpluscallsandroid.webrtc.model.RTCConnectionConfig
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
+import events.DirectCallListener
 import io.talkplus.TalkPlus
 import io.talkplus.entity.user.TPRtcConfiguration
 import kotlinx.coroutines.CoroutineScope
@@ -15,11 +16,14 @@ import java.lang.Exception
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class TPWebRTCClient(val talkPlusCall: TalkPlusCall) {
+class TPWebRTCClient(
+    val talkPlusCall: TalkPlusCall,
+    val directCallListener: DirectCallListener
+) {
     private lateinit var rtcClient: RtcClient
 
     init {
-        setTurnServers()
+        setRtcClient()
     }
 
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -47,18 +51,24 @@ class TPWebRTCClient(val talkPlusCall: TalkPlusCall) {
     }
 
     fun endCall() {
-//        rtcClient.endCall()
+        // TODO enum화
+        rtcClient.endCall(
+            talkplusCall = talkPlusCall,
+            endReasonCode = 1,
+            endReasonMessage = "completed"
+        )
     }
 
     private fun setRtcClient(rtcConnectionConfig: RTCConnectionConfig): RtcClient {
         return RtcClient(
             context = TalkPlus.getContext(),
             talkplusCall = this.talkPlusCall,
-            rtcConnectionConfig = rtcConnectionConfig
+            rtcConnectionConfig = rtcConnectionConfig,
+            directCallListener
         )
     }
 
-    private fun setTurnServers() {
+    private fun setRtcClient() {
         TalkPlus.getWebRtcConfiguration(object : TalkPlus.CallbackListener<TPRtcConfiguration> {
             override fun onSuccess(tpRtcConfiguration: TPRtcConfiguration) {
                 val rtcConnectionConfig = RTCConnectionConfig(

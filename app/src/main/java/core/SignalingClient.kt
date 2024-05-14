@@ -7,13 +7,19 @@ import com.neptune.talkpluscallsandroid.webrtc.events.SignalingClientListener
 import com.neptune.talkpluscallsandroid.webrtc.model.EndCallStatus
 import com.neptune.talkpluscallsandroid.webrtc.model.SignalingMessageType
 import com.neptune.talkpluscallsandroid.webrtc.model.WebRTCMessageType
+import events.DirectCallListener
 import io.talkplus.internal.api.TalkPlusImpl
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.webrtc.IceCandidate
 import org.webrtc.SessionDescription
 
 //
 
-class SignalingClient(private val signalingClientListener: SignalingClientListener) {
+class SignalingClient(
+    private val signalingClientListener: SignalingClientListener
+) {
     init {
         connect()
     }
@@ -23,7 +29,10 @@ class SignalingClient(private val signalingClientListener: SignalingClientListen
             when (payload["type"]) {
                 WebRTCMessageType.OFFER.type -> offerReceive(payload["sessionDescription"].toString())
                 WebRTCMessageType.ANSWER.type -> answerReceive(payload["sessionDescription"].toString())
-                WebRTCMessageType.END_CALL.type -> handleReasonCode(payload["endReasonCode"].toString().toInt())
+                WebRTCMessageType.END_CALL.type -> handleReasonCode(
+                    reasonCode = payload["endReasonCode"].toString().toInt(),
+                    reasonMessage = payload["endReasonMessage"].toString()
+                )
                 WebRTCMessageType.CANDIDATE.type -> {
                     val iceCandidate: IceCandidate = IceCandidate(
                         payload["sdpMid"].toString(),
@@ -36,7 +45,7 @@ class SignalingClient(private val signalingClientListener: SignalingClientListen
         }
     }
 
-     fun offerReceive(sessionDescription: String) {
+    fun offerReceive(sessionDescription: String) {
         Log.d(TAG, "offerReceive$sessionDescription")
         signalingClientListener.onOfferReceived(
             SessionDescription(
@@ -60,15 +69,15 @@ class SignalingClient(private val signalingClientListener: SignalingClientListen
         signalingClientListener.onIceCandidateReceived(iceCandidate)
     }
 
-    private fun handleReasonCode(reasonCode: Int) {
+    private fun handleReasonCode(
+        reasonCode: Int,
+        reasonMessage: String
+    ) {
         Log.d(TAG, "reasonCode $reasonCode")
-        when (reasonCode) {
-            EndCallStatus.UNKNOWN.code -> Unit
-            EndCallStatus.COMPLETED.code -> signalingClientListener.onCallEnded()
-            EndCallStatus.DECLINED.code -> signalingClientListener.onCallDeclined()
-            EndCallStatus.CANCELED.code -> signalingClientListener.onCallCanceled()
-            else -> Unit
-        }
+        signalingClientListener.onCallEnded(
+            reasonCode = reasonCode,
+            reasonMessage = reasonMessage
+        )
     }
 
      fun sendIceCandidate(

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.widget.Toast
 import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
 import androidx.core.content.ContextCompat
@@ -35,5 +36,4 @@ fun Context.closeNotification() {
     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     notificationManager.cancel(TPFirebaseMessagingService.NOTIFICATION_ID)
 }
-
 

@@ -8,8 +8,6 @@ interface SignalingClientListener {
 	fun onOfferReceived(description: SessionDescription)
 	fun onAnswerReceived(description: SessionDescription)
 	fun onIceCandidateReceived(iceCandidate: IceCandidate)
-	fun onCallEnded()
-	fun onCallCanceled()
-	fun onCallDeclined()
+	fun onCallEnded(reasonCode: Int, reasonMessage: String)
 }
 
