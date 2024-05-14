@@ -125,6 +125,7 @@ class CallActivity : AppCompatActivity() {
                 )
             }
         }
+        tpWebRTCClient = setTpWebRTCClient()
     }
 
     private fun login() {
@@ -160,13 +161,11 @@ class CallActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, permissions, CAMERA_AUDIO_PERMISSION_REQUEST_CODE)
     }
 
-    private fun settpWebRTCClient(): TPWebRTCClient {
+    private fun setTpWebRTCClient(): TPWebRTCClient {
         return TPWebRTCClient(callViewModel.talkPlusCall)
     }
 
     private fun startConnect() {
-        tpWebRTCClient = settpWebRTCClient()
-
         with(tpWebRTCClient) {
             setLocalVideo(binding.surfaceLocal)
             setRemoteVideo(binding.surfaceRemote)

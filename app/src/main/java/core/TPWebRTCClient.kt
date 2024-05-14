@@ -19,9 +19,7 @@ class TPWebRTCClient(val talkPlusCall: TalkPlusCall) {
     private lateinit var rtcClient: RtcClient
 
     init {
-        CoroutineScope(Dispatchers.IO).launch {
-            rtcClient = setRtcClient()
-        }
+        setTurnServers()
     }
 
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -52,16 +50,15 @@ class TPWebRTCClient(val talkPlusCall: TalkPlusCall) {
 //        rtcClient.endCall()
     }
 
-    private suspend fun setRtcClient(): RtcClient {
-        val test = CoroutineScope(Dispatchers.IO).async { fetchWebRtcConfiguration() }
+    private fun setRtcClient(rtcConnectionConfig: RTCConnectionConfig): RtcClient {
         return RtcClient(
             context = TalkPlus.getContext(),
             talkplusCall = this.talkPlusCall,
-            rtcConnectionConfig = test.await()
+            rtcConnectionConfig = rtcConnectionConfig
         )
     }
 
-    private suspend fun fetchWebRtcConfiguration(): RTCConnectionConfig = suspendCancellableCoroutine { cont ->
+    private fun setTurnServers() {
         TalkPlus.getWebRtcConfiguration(object : TalkPlus.CallbackListener<TPRtcConfiguration> {
             override fun onSuccess(tpRtcConfiguration: TPRtcConfiguration) {
                 val rtcConnectionConfig = RTCConnectionConfig(
@@ -70,15 +67,11 @@ class TPWebRTCClient(val talkPlusCall: TalkPlusCall) {
                     stunServerUris = tpRtcConfiguration.stunServerUris,
                     turnServerUris = tpRtcConfiguration.turnServerUris
                 )
-                cont.resume(rtcConnectionConfig)
+                rtcClient = setRtcClient(rtcConnectionConfig)
             }
 
             override fun onFailure(p0: Int, p1: Exception?) {
-                if (p1 != null) {
-                    cont.resumeWithException(p1)
-                } else {
-                    cont.resumeWithException(RuntimeException("Failed to fetch configuration with error code $p0"))
-                }
+
             }
         })
     }
