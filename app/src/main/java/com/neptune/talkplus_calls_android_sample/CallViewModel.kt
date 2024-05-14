@@ -52,10 +52,7 @@ class CallViewModel(
         viewModelScope.launch {
             authRepository.login(params).collect { callbackResult ->
                 when (callbackResult) {
-                    is Result.Success -> {
-                        _callState.emit(CallUiState.Login(callbackResult.successData))
-                        setConnectionConfig()
-                    }
+                    is Result.Success -> _callState.emit(CallUiState.Login(callbackResult.successData))
                     is Result.Failure -> _callState.emit(CallUiState.Failed(callbackResult.failResult))
                 }
             }

@@ -14,7 +14,12 @@ import com.neptune.talkpluscallsandroid.webrtc.model.WebRTCMessageType
 import io.talkplus.TalkPlus
 import io.talkplus.TalkPlus.CallbackListener
 import io.talkplus.entity.user.TPNotificationPayload
+import io.talkplus.entity.user.TPRtcConfiguration
 import io.talkplus.internal.api.TalkPlusImpl
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.AudioTrack
 import org.webrtc.Camera2Enumerator
 import org.webrtc.DefaultVideoDecoderFactory
@@ -34,6 +39,8 @@ import org.webrtc.VideoCapturer
 import org.webrtc.VideoSource
 import org.webrtc.VideoTrack
 import java.lang.Exception
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * WebRTC 라이브러리의 기본 객체들을 초기화하고, 핸들링 합니다.
@@ -41,11 +48,9 @@ import java.lang.Exception
  */
 
 // TODO : 예외처리 스펙 정하기 -> error, exception, throw
-// 캐시 삭제 버전
 
-class RtcClient(
+internal class RtcClient(
     private val context: Context,
-    private val rtcConnectionConfig: RTCConnectionConfig,
     private val talkplusCall: TalkPlusCall
 ) {
     init {
@@ -69,6 +74,7 @@ class RtcClient(
 
     private var localVideoSource: VideoSource = peerConnectionFactory!!.createVideoSource(false)
     private var audioSource = peerConnectionFactory!!.createAudioSource(MediaConstraints())
+
     private var localAudioTrack: AudioTrack = peerConnectionFactory!!.createAudioTrack("local_track" + "_audio", audioSource)
     private var localVideoTrack: VideoTrack = peerConnectionFactory!!.createVideoTrack("local_track", localVideoSource)
 
@@ -83,6 +89,19 @@ class RtcClient(
         PeerConnectionFactory.initialize(options)
     }
 
+    suspend fun getWebRtcConfigurationSync(): TPRtcConfiguration = suspendCancellableCoroutine { continuation ->
+        TalkPlus.getWebRtcConfiguration(object : TalkPlus.CallbackListener<TPRtcConfiguration> {
+            override fun onSuccess(tpRtcConfiguration: TPRtcConfiguration) {
+                continuation.resume(tpRtcConfiguration)
+            }
+
+            override fun onFailure(errorCode: Int, exception: Exception) {
+                continuation.resumeWithException(exception)
+            }
+        })
+    }
+
+
     private fun buildPeerConnectionFactory(): PeerConnectionFactory {
         val peerConnectOptions: PeerConnectionFactory.Options = PeerConnectionFactory.Options().apply {
             disableEncryption = false // true일 경우 암호화 비활성화
@@ -96,21 +115,34 @@ class RtcClient(
             .createPeerConnectionFactory()
     }
 
-    private fun buildPeerConnection(): PeerConnection = with(rtcConnectionConfig) {
-        val icesServers: ArrayList<PeerConnection.IceServer> = arrayListOf()
+    private fun buildPeerConnection(): PeerConnection {
+        CoroutineScope(Dispatchers.IO).launch {
+            peerConnectionFactory!!.createPeerConnection(setIceServers(), peerConnectionObserver()) ?: error("error")
+        }
+    }
 
-        stunServerUris.forEach { stunServerUri ->
+    private suspend fun setIceServers(): ArrayList<PeerConnection.IceServer> {
+        val icesServers: ArrayList<PeerConnection.IceServer> = arrayListOf()
+        val tpRtcConfiguration = getWebRtcConfigurationSync()
+        val rtcConnectionConfig = RTCConnectionConfig(
+            turnUsername = tpRtcConfiguration.turnUsername,
+            turnPassword = tpRtcConfiguration.turnPassword,
+            stunServerUris = tpRtcConfiguration.stunServerUris,
+            turnServerUris = tpRtcConfiguration.turnServerUris
+        )
+
+        rtcConnectionConfig.stunServerUris.forEach { stunServerUri ->
             icesServers.add(PeerConnection.IceServer.builder(stunServerUri).createIceServer())
         }
 
-        turnServerUris.forEach { turnServerUri ->
+        rtcConnectionConfig.turnServerUris.forEach { turnServerUri ->
             icesServers.add(PeerConnection.IceServer.builder(turnServerUri)
-                .setUsername(turnUsername)
-                .setPassword(turnPassword)
+                .setUsername(rtcConnectionConfig.turnUsername)
+                .setPassword(rtcConnectionConfig.turnPassword)
                 .createIceServer()
             )
         }
-        return peerConnectionFactory!!.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("error")
+        return icesServers
     }
 
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -123,7 +155,7 @@ class RtcClient(
         remoteSurfaceView = surfaceViewRenderer
     }
 
-     private fun initSurfaceView(surfaceViewRenderer: SurfaceViewRenderer) {
+    private fun initSurfaceView(surfaceViewRenderer: SurfaceViewRenderer) {
         Log.d(TAG, "initSurfaceView")
         with(surfaceViewRenderer) {
             setMirror(true)
@@ -167,7 +199,7 @@ class RtcClient(
     }
 
     // createOffer
-     fun makeCall(talkplusCall: TalkPlusCall) {
+    fun makeCall(talkplusCall: TalkPlusCall) {
         Log.d(TAG, "createOffer")
         type = "offer"
         val mediaConstraints: MediaConstraints = MediaConstraints().apply {
@@ -214,7 +246,7 @@ class RtcClient(
     }
 
     // createAnswer
-     fun acceptCall() {
+    fun acceptCall() {
         type = "answer"
         signallingClient.offerReceive(talkplusCall.sdp)
         Log.d(TAG, "createAnswer")
@@ -240,18 +272,6 @@ class RtcClient(
         }
     }
 
-     fun validateAcceptCall(url: String) {
-        TalkPlus.getNotificationPayload(url, object : CallbackListener<TPNotificationPayload> {
-            override fun onSuccess(tpNotificationPayload: TPNotificationPayload?) {
-                Log.d(TAG, tpNotificationPayload?.sdp.toString())
-            }
-
-            override fun onFailure(errorCode: Int, e: Exception) {
-                Log.d(TAG, "$errorCode ${e.message}")
-            }
-        })
-    }
-
     private fun sendAnswer(
         sessionDescription: SessionDescription,
         talkplusCall: TalkPlusCall
@@ -272,7 +292,7 @@ class RtcClient(
         TalkPlusImpl.sendMessage(Gson().toJson(sendAnswer))
     }
 
-     fun onRemoteSessionReceived(sessionDescription: SessionDescription) {
+    fun onRemoteSessionReceived(sessionDescription: SessionDescription) {
         peerConnection?.setRemoteDescription(object : SdpObserver {
             override fun onCreateSuccess(sessionDescription: SessionDescription) { Log.d(TAG, "onRemoteSessionReceived : $sessionDescription") }
             override fun onSetSuccess() { Log.d(TAG, "onRemoteSessionReceived : onSetSuccess") }
@@ -281,22 +301,22 @@ class RtcClient(
         }, sessionDescription)
     }
 
-     fun addIceCandidate(iceCandidate: IceCandidate) {
+    fun addIceCandidate(iceCandidate: IceCandidate) {
         if (!peerConnection?.addIceCandidate(iceCandidate)!!) {
             receiveCandidate.add(iceCandidate)
         }
     }
 
-     fun enableVideo(videoEnabled: Boolean) {
+    fun enableVideo(videoEnabled: Boolean) {
         localVideoTrack.setEnabled(videoEnabled)
     }
 
-     fun enableAudio(audioEnabled: Boolean) {
+    fun enableAudio(audioEnabled: Boolean) {
         localAudioTrack.setEnabled(audioEnabled)
     }
 
     // 내가 종료한 경우
-     fun endCall(
+    fun endCall(
         talkplusCall: TalkPlusCall,
         endReasonCode: Int,
         endReasonMessage: String

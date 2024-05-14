@@ -1,12 +1,8 @@
 package com.neptune.talkplus_calls_android_sample
 
 import android.Manifest
-import android.app.NotificationManager
-import android.content.Context
-import android.media.AudioManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
@@ -21,26 +17,16 @@ import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
 import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
 import com.neptune.talkplus_calls_android_sample.extensions.requirePermission
 import com.neptune.talkplus_calls_android_sample.extensions.showToast
-import com.neptune.talkpluscallsandroid.webrtc.core.RtcClient
-import com.neptune.talkpluscallsandroid.webrtc.core.SignalingClient
-import com.neptune.talkpluscallsandroid.webrtc.events.PeerConnectionObserver
-import com.neptune.talkpluscallsandroid.webrtc.events.SignalingClientListener
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
+import core.TPWebRTCClient
 import io.talkplus.entity.user.TPNotificationPayload
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.webrtc.IceCandidate
-import org.webrtc.MediaStream
-import org.webrtc.PeerConnection
-import org.webrtc.RtpReceiver
-import org.webrtc.SessionDescription
 
 class CallActivity : AppCompatActivity() {
     private val binding: ActivityCallBinding by lazy { ActivityCallBinding.inflate(layoutInflater) }
-    private val rtcClient: RtcClient by lazy { setRtcClient() }
+    private lateinit var tpWebRTCClient: TPWebRTCClient
     private val callViewModel: CallViewModel by lazy { ViewModelProvider(this)[CallViewModel::class.java] }
-    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+//    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,11 +60,12 @@ class CallActivity : AppCompatActivity() {
         ivAudio.setOnClickListener { toggleAudio() }
         ivVideo.setOnClickListener { toggleVideo() }
         ivEndCall.setOnClickListener {
-            rtcClient.endCall(
-                talkplusCall = callViewModel.talkPlusCall,
-                endReasonCode = 3,
-                endReasonMessage = "call canceled by caller"
-            )
+//            rtcClient.endCall(
+//                talkplusCall = callViewModel.talkPlusCall,
+//                endReasonCode = 3,
+//                endReasonMessage = "call canceled by caller"
+//            )
+            tpWebRTCClient.endCall()
         }
     }
 
@@ -87,7 +74,7 @@ class CallActivity : AppCompatActivity() {
             true -> binding.ivVideo.setBackgroundResource(R.drawable.ic_video_off)
             false -> binding.ivVideo.setBackgroundResource(R.drawable.ic_video_on)
         }
-        rtcClient.enableVideo(!callViewModel.isEnableLocalVideo)
+        tpWebRTCClient.enableVideo(!callViewModel.isEnableLocalVideo)
         callViewModel.setLocalVideo(!callViewModel.isEnableLocalVideo)
     }
 
@@ -96,7 +83,7 @@ class CallActivity : AppCompatActivity() {
             true -> binding.ivAudio.setBackgroundResource(R.drawable.ic_mic_on)
             false -> binding.ivAudio.setBackgroundResource(R.drawable.ic_mic_off)
         }
-        rtcClient.enableAudio(!callViewModel.isEnableLocalAudio)
+        tpWebRTCClient.enableAudio(!callViewModel.isEnableLocalAudio)
         callViewModel.setLocalAudio(!callViewModel.isEnableLocalAudio)
     }
 
@@ -173,34 +160,32 @@ class CallActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, permissions, CAMERA_AUDIO_PERMISSION_REQUEST_CODE)
     }
 
-    private fun setRtcClient(): RtcClient {
-        return RtcClient(
-            this@CallActivity,
-            callViewModel.connectionConfig,
-            callViewModel.talkPlusCall
-        )
+    private fun settpWebRTCClient(): TPWebRTCClient {
+        return TPWebRTCClient(callViewModel.talkPlusCall)
     }
 
     private fun startConnect() {
-        with(rtcClient) {
+        tpWebRTCClient = settpWebRTCClient()
+
+        with(tpWebRTCClient) {
             setLocalVideo(binding.surfaceLocal)
             setRemoteVideo(binding.surfaceRemote)
         }
 
         if (intent.hasExtra(INTENT_EXTRA_NOTIFICATION_PAYLOAD)) {
             closeNotification()
-            rtcClient.acceptCall()
+            tpWebRTCClient.acceptCall()
         } else {
-            rtcClient.makeCall(callViewModel.talkPlusCall)
+            tpWebRTCClient.makeCall(callViewModel.talkPlusCall)
         }
     }
 
 
-    private fun setSpeakerPhone() {
-        audioManager.isSpeakerphoneOn = true
-        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        volumeControlStream = AudioManager.STREAM_VOICE_CALL
-    }
+//    private fun setSpeakerPhone() {
+//        audioManager.isSpeakerphoneOn = true
+//        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+//        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+//    }
 
     companion object {
         private const val TAG = "CallActivity!!"

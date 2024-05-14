@@ -55,5 +55,5 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging:23.4.1")
 
     implementation("org.webrtc:google-webrtc:1.0.32006")
-    implementation("com.github.adxcorp:talkplus-android:test-rtc-06")
+    implementation("com.github.adxcorp:talkplus-android:test-rtc-07")
 }
