@@ -51,7 +51,8 @@ import kotlin.coroutines.resumeWithException
 
 internal class RtcClient(
     private val context: Context,
-    private val talkplusCall: TalkPlusCall
+    private val talkplusCall: TalkPlusCall,
+    private val rtcConnectionConfig: RTCConnectionConfig
 ) {
     init {
         initPeerConnectionFactory()
@@ -115,10 +116,22 @@ internal class RtcClient(
             .createPeerConnectionFactory()
     }
 
-    private fun buildPeerConnection(): PeerConnection {
-        CoroutineScope(Dispatchers.IO).launch {
-            peerConnectionFactory!!.createPeerConnection(setIceServers(), peerConnectionObserver()) ?: error("error")
+    private fun buildPeerConnection(): PeerConnection = with(rtcConnectionConfig) {
+        val icesServers: ArrayList<PeerConnection.IceServer> = arrayListOf()
+
+        stunServerUris.forEach { stunServerUri ->
+            icesServers.add(org.webrtc.PeerConnection.IceServer.builder(stunServerUri).createIceServer())
         }
+
+        turnServerUris.forEach { turnServerUri ->
+            icesServers.add(
+                org.webrtc.PeerConnection.IceServer.builder(turnServerUri)
+                .setUsername(turnUsername)
+                .setPassword(turnPassword)
+                .createIceServer()
+            )
+        }
+        return peerConnectionFactory!!.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("error")
     }
 
     private suspend fun setIceServers(): ArrayList<PeerConnection.IceServer> {
