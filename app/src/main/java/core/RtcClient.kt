@@ -77,6 +77,8 @@ internal class RtcClient(
     private val sendCandidate: ArrayList<IceCandidate> = arrayListOf()
     private val receiveCandidate: ArrayList<IceCandidate> = arrayListOf()
 
+    private val mainDispatchers = CoroutineScope(Dispatchers.Main)
+
     private fun initPeerConnectionFactory() {
         val options: PeerConnectionFactory.InitializationOptions = PeerConnectionFactory.InitializationOptions.builder(context)
             .setEnableInternalTracer(true)
@@ -415,10 +417,10 @@ internal class RtcClient(
 
         override fun onIceConnectionChange(iceConnectionState: PeerConnection.IceConnectionState) {
             Log.d(TAG, iceConnectionState.name.toString())
-            if (iceConnectionState == PeerConnection.IceConnectionState.CONNECTED) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    directCallListener.connected(talkplusCall)
-                }
+            when (iceConnectionState) {
+                PeerConnection.IceConnectionState.CONNECTED -> mainDispatchers.launch { directCallListener.connected(talkplusCall) }
+                PeerConnection.IceConnectionState.FAILED -> mainDispatchers.launch { directCallListener.failed(talkplusCall) }
+                else -> mainDispatchers.launch { directCallListener.stateChanged(talkplusCall, iceConnectionState) }
             }
         }
     }

@@ -26,6 +26,7 @@ import events.DirectCallListener
 import io.talkplus.entity.user.TPNotificationPayload
 import kotlinx.coroutines.launch
 import model.EndCallInfo
+import org.webrtc.PeerConnection
 
 class CallActivity : AppCompatActivity() {
     private val binding: ActivityCallBinding by lazy { ActivityCallBinding.inflate(layoutInflater) }
@@ -185,6 +186,7 @@ class CallActivity : AppCompatActivity() {
         }
 
         override fun connected(talkPlusCall: TalkPlusCall) {
+            showToast("연결 성공!")
             setSpeakerPhone()
         }
 
@@ -197,11 +199,11 @@ class CallActivity : AppCompatActivity() {
             }
         }
 
-        override fun failed() {
+        override fun failed(talkPlusCall: TalkPlusCall) {
 
         }
 
-        override fun stateChanged() {
+        override fun stateChanged(talkPlusCall: TalkPlusCall, state: PeerConnection.IceConnectionState) {
 
         }
 
