@@ -6,19 +6,12 @@ import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import events.DirectCallListener
 import io.talkplus.TalkPlus
 import io.talkplus.entity.user.TPRtcConfiguration
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.SurfaceViewRenderer
 import java.lang.Exception
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class TPWebRTCClient(
-    val talkPlusCall: TalkPlusCall,
-    val directCallListener: DirectCallListener
+    private val talkPlusCall: TalkPlusCall,
+    private val directCallListener: DirectCallListener
 ) {
     private lateinit var rtcClient: RtcClient
 
@@ -59,7 +52,7 @@ class TPWebRTCClient(
         )
     }
 
-    private fun setRtcClient(rtcConnectionConfig: RTCConnectionConfig): RtcClient {
+    private fun getRtcClient(rtcConnectionConfig: RTCConnectionConfig): RtcClient {
         return RtcClient(
             context = TalkPlus.getContext(),
             talkplusCall = this.talkPlusCall,
@@ -77,7 +70,7 @@ class TPWebRTCClient(
                     stunServerUris = tpRtcConfiguration.stunServerUris,
                     turnServerUris = tpRtcConfiguration.turnServerUris
                 )
-                rtcClient = setRtcClient(rtcConnectionConfig)
+                rtcClient = getRtcClient(rtcConnectionConfig)
             }
 
             override fun onFailure(p0: Int, p1: Exception?) {
