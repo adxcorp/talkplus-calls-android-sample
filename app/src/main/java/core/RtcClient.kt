@@ -59,22 +59,22 @@ internal class RtcClient(
     private val rootEglBase: EglBase = EglBase.create()
     private var type: String = ""
 
-    private var videoCapturer: VideoCapturer = getVideoCapturer()
-    private var peerConnectionFactory: PeerConnectionFactory = buildPeerConnectionFactory()
-    private var peerConnection: PeerConnection = buildPeerConnection()
+    private var videoCapturer: VideoCapturer? = getVideoCapturer()
+    private var peerConnectionFactory: PeerConnectionFactory? = buildPeerConnectionFactory()
+    private var peerConnection: PeerConnection? = buildPeerConnection()
 
-    private val signallingClient: SignalingClient = SignalingClient(
-        createSignallingClientListener(),
-    )
+    private val signallingClient: SignalingClient = SignalingClient(createSignallingClientListener())
     private var remoteSurfaceView: SurfaceViewRenderer? = null
     private var localSurfaceView: SurfaceViewRenderer? = null
 
-    private var localVideoSource: VideoSource = peerConnectionFactory.createVideoSource(false) 
-    private var audioSource = peerConnectionFactory.createAudioSource(MediaConstraints()) 
+    private var localVideoSource: VideoSource = peerConnectionFactory?.createVideoSource(false) ?: error("failed createVideoSource")
+    private var audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints()) ?: error("failed createAudioSource")
 
-    private var localAudioTrack: AudioTrack = peerConnectionFactory.createAudioTrack("local_track" + "_audio", audioSource) 
+    private var localAudioTrack: AudioTrack =
+        peerConnectionFactory?.createAudioTrack("local_track" + "_audio", audioSource) ?: error("failed createAudioTrack")
 
-    private var localVideoTrack: VideoTrack = peerConnectionFactory.createVideoTrack("local_track", localVideoSource) 
+    private var localVideoTrack: VideoTrack =
+        peerConnectionFactory?.createVideoTrack("local_track", localVideoSource) ?: error("failed createVideoTrack")
 
     private val sendCandidate: ArrayList<IceCandidate> = arrayListOf()
     private val receiveCandidate: ArrayList<IceCandidate> = arrayListOf()
@@ -112,12 +112,12 @@ internal class RtcClient(
         turnServerUris.forEach { turnServerUri ->
             icesServers.add(
                 PeerConnection.IceServer.builder(turnServerUri)
-                .setUsername(turnUsername)
-                .setPassword(turnPassword)
-                .createIceServer()
+                    .setUsername(turnUsername)
+                    .setPassword(turnPassword)
+                    .createIceServer()
             )
         }
-        return peerConnectionFactory.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("failed createPeerConnection")
+        return peerConnectionFactory?.createPeerConnection(icesServers, peerConnectionObserver()) ?: error("failed createPeerConnection")
     }
 
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -148,7 +148,7 @@ internal class RtcClient(
         Log.d(TAG, Thread.currentThread().name)
 
         with(videoCapturer) {
-            initialize(
+            this!!.initialize(
                 surfaceTextureHelper,
                 localVideoOutput.context,
                 localVideoSource.capturerObserver
@@ -157,8 +157,8 @@ internal class RtcClient(
         }
 
         with(peerConnection) {
-            this.addTrack(localVideoTrack)
-            this.addTrack(localAudioTrack)
+            this?.addTrack(localVideoTrack)
+            this?.addTrack(localAudioTrack)
         }
 
         localVideoTrack.addSink(localVideoOutput)
@@ -185,7 +185,7 @@ internal class RtcClient(
         }
 
         with(peerConnection) {
-            this.createOffer(object : SdpObserver {
+            this?.createOffer(object : SdpObserver {
                 override fun onCreateSuccess(sessionDescription: SessionDescription)  {
                     sendOffer(
                         sessionDescription = sessionDescription,
@@ -233,7 +233,7 @@ internal class RtcClient(
         }
 
         with(peerConnection) {
-            this.createAnswer(object : SdpObserver {
+            this?.createAnswer(object : SdpObserver {
                 override fun onCreateSuccess(sessionDescription: SessionDescription) {
                     Log.d(TAG, "createAnswer onCreateSuccess")
                     sendAnswer(
@@ -271,7 +271,7 @@ internal class RtcClient(
     }
 
     fun onRemoteSessionReceived(sessionDescription: SessionDescription) {
-        peerConnection.setRemoteDescription(object : SdpObserver {
+        peerConnection?.setRemoteDescription(object : SdpObserver {
             override fun onCreateSuccess(sessionDescription: SessionDescription) { Log.d(TAG, "onRemoteSessionReceived : $sessionDescription") }
             override fun onSetSuccess() { Log.d(TAG, "onRemoteSessionReceived : onSetSuccess") }
             override fun onCreateFailure(reason: String) { Log.d(TAG, "onRemoteSessionReceived : onCreateFailure $reason") }
@@ -280,11 +280,11 @@ internal class RtcClient(
     }
 
     fun addIceCandidate(iceCandidate: IceCandidate) {
-        peerConnection.let { peer ->
+        peerConnection?.let { peer ->
             if (!peer.addIceCandidate(iceCandidate)) {
                 receiveCandidate.add(iceCandidate)
             }
-        }
+        } ?: error("peerConnection is null")
     }
 
     fun enableVideo(videoEnabled: Boolean) {
@@ -310,23 +310,30 @@ internal class RtcClient(
             endReasonCode = endReasonCode,
             endReasonMessage = endReasonMessage
         )
-        closePeerConnection()
+        deAllocation()
         TalkPlusImpl.sendMessage(Gson().toJson(endCallRequest))
     }
 
-    private fun closePeerConnection() {
-        peerConnection.close()
+    private fun deAllocation() {
+        val receiveCandidates: Array<IceCandidate?> = arrayOfNulls(receiveCandidate.size)
+        receiveCandidate.forEachIndexed { index, candidate -> receiveCandidates[index] = candidate }
+        peerConnection?.removeIceCandidates(receiveCandidates)
+        peerConnection?.close()
+        peerConnection = null
+        peerConnectionFactory = null
+        videoCapturer = null
+        receiveCandidate.clear()
     }
 
-    private fun initPeerConnection() {
+    private fun allocation() {
         initPeerConnectionFactory()
         videoCapturer = getVideoCapturer()
         peerConnectionFactory = buildPeerConnectionFactory()
         peerConnection = buildPeerConnection()
-        localVideoSource = peerConnectionFactory.createVideoSource(false) ?: error("failed createVideoSource")
-        audioSource = peerConnectionFactory.createAudioSource(MediaConstraints()) ?: error("failed createAudioSource")
-        localAudioTrack = peerConnectionFactory.createAudioTrack("local_track" + "_audio", audioSource) ?: error("failed createAudioTrack")
-        localVideoTrack = peerConnectionFactory.createVideoTrack("local_track", localVideoSource) ?: error("failed createVideoTrack")
+        localVideoSource = peerConnectionFactory?.createVideoSource(false) ?: error("failed createVideoSource")
+        audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints()) ?: error("failed createAudioSource")
+        localAudioTrack = peerConnectionFactory?.createAudioTrack("local_track" + "_audio", audioSource) ?: error("failed createAudioTrack")
+        localVideoTrack = peerConnectionFactory?.createVideoTrack("local_track", localVideoSource) ?: error("failed createVideoTrack")
     }
 
     private fun PeerConnection.setLocalDescription(sessionDescription: SessionDescription) {
@@ -386,8 +393,8 @@ internal class RtcClient(
                 CoroutineScope(Dispatchers.Main).launch {
                     directCallListener.ended(endCallInfo)
                 }
-                closePeerConnection()
-                initPeerConnection()
+                deAllocation()
+                allocation()
             }
         }
     }
