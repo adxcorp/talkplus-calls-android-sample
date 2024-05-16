@@ -2,9 +2,12 @@ package com.neptune.talkplus_calls_android_sample
 
 import android.Manifest
 import android.content.Context
+import android.graphics.Color
 import android.media.AudioManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
@@ -24,6 +27,8 @@ import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import core.TPWebRTCClient
 import events.DirectCallListener
 import io.talkplus.entity.user.TPNotificationPayload
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import model.EndCallInfo
 import org.webrtc.PeerConnection
@@ -64,7 +69,14 @@ class CallActivity : AppCompatActivity() {
     private fun setClickListener() = with(binding) {
         ivAudio.setOnClickListener { toggleAudio() }
         ivVideo.setOnClickListener { toggleVideo() }
-        ivEndCall.setOnClickListener { tpWebRTCClient.endCall() }
+        ivEndCall.setOnClickListener {
+            tpWebRTCClient.endCall()
+            TPFirebaseMessagingService.isCalling = false
+            finish()
+        }
+        surfaceLocal.setOnClickListener {
+            tpWebRTCClient.makeCall(callViewModel.talkPlusCall)
+        }
     }
 
     private fun toggleVideo() {
@@ -186,14 +198,34 @@ class CallActivity : AppCompatActivity() {
         }
 
         override fun connected(talkPlusCall: TalkPlusCall) {
-            showToast("연결 성공!")
+            binding.pbLoading.visibility = View.GONE
+            binding.surfaceRemote.setBackgroundColor(Color.TRANSPARENT)
             setSpeakerPhone()
         }
 
         override fun ended(endCallInfo: EndCallInfo) {
+            Log.d("$TAG ended : ", endCallInfo.toString())
             when (endCallInfo.endReasonCode) {
                 EndCallStatus.UNKNOWN.code -> { showToast("비정상 종료")}
-                EndCallStatus.COMPLETED.code -> { showToast("정상 종료") }
+                EndCallStatus.COMPLETED.code -> {
+                    binding.surfaceRemote.apply {
+                        clearImage()
+                        release()
+                        setBackgroundColor(Color.BLACK)
+                    }
+
+                    binding.surfaceLocal.apply {
+                        clearImage()
+                        release()
+                    }
+
+                    binding.pbLoading.visibility = View.VISIBLE
+
+                    tpWebRTCClient.setRemoteVideo(binding.surfaceRemote)
+                    tpWebRTCClient.setLocalVideo(binding.surfaceLocal)
+
+                    showToast("상대방과의 통화가 끊어졌습니다.")
+                }
                 EndCallStatus.DECLINED.code -> { showToast("callee가 거절") }
                 EndCallStatus.CANCELED.code -> { showToast("caller가 거절") }
             }
@@ -212,11 +244,15 @@ class CallActivity : AppCompatActivity() {
         }
     }
 
-    fun setSpeakerPhone() {
+    private fun setSpeakerPhone() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.isSpeakerphoneOn = true
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
+    }
+
+    private fun removeRemoteView() {
+
     }
 
     companion object {

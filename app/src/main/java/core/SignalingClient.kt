@@ -73,7 +73,6 @@ class SignalingClient(
         reasonCode: Int,
         reasonMessage: String
     ) {
-        Log.d(TAG, "reasonCode $reasonCode")
         signalingClientListener.onCallEnded(
             reasonCode = reasonCode,
             reasonMessage = reasonMessage

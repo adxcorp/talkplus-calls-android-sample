@@ -59,7 +59,7 @@ internal class RtcClient(
     private val rootEglBase: EglBase = EglBase.create()
     private var type: String = ""
 
-    private var videoCapturer: VideoCapturer = getVideoCapturer()
+    private var videoCapturer: VideoCapturer? = getVideoCapturer()
     private var peerConnectionFactory: PeerConnectionFactory? = buildPeerConnectionFactory()
     private var peerConnection: PeerConnection? = buildPeerConnection()
 
@@ -67,6 +67,7 @@ internal class RtcClient(
         createSignallingClientListener(),
     )
     private var remoteSurfaceView: SurfaceViewRenderer? = null
+    private var localSurfaceView: SurfaceViewRenderer? = null
 
     private var localVideoSource: VideoSource = peerConnectionFactory?.createVideoSource(false) ?: error("failed createVideoSource")
     private var audioSource = peerConnectionFactory?.createAudioSource(MediaConstraints()) ?: error("failed createAudioSource")
@@ -109,7 +110,7 @@ internal class RtcClient(
 
         turnServerUris.forEach { turnServerUri ->
             icesServers.add(
-                org.webrtc.PeerConnection.IceServer.builder(turnServerUri)
+                PeerConnection.IceServer.builder(turnServerUri)
                 .setUsername(turnUsername)
                 .setPassword(turnPassword)
                 .createIceServer()
@@ -121,6 +122,7 @@ internal class RtcClient(
     fun setLocalVideo(surfaceViewRenderer: SurfaceViewRenderer) {
         initSurfaceView(surfaceViewRenderer)
         startLocalVideoCapture(surfaceViewRenderer)
+        localSurfaceView = surfaceViewRenderer
     }
 
     fun setRemoteVideo(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -142,8 +144,10 @@ internal class RtcClient(
         val surfaceTextureHelper: SurfaceTextureHelper =
             SurfaceTextureHelper.create(Thread.currentThread().name, rootEglBase.eglBaseContext)
 
+        Log.d(TAG, Thread.currentThread().name)
+
         with(videoCapturer) {
-            initialize(
+            this!!.initialize(
                 surfaceTextureHelper,
                 localVideoOutput.context,
                 localVideoSource.capturerObserver
@@ -296,7 +300,6 @@ internal class RtcClient(
         endReasonCode: Int,
         endReasonMessage: String
     ) {
-        deAllocation()
         val endCallRequest: SignalingMessageType = SignalingMessageType.EndCallRequest(
             type = WebRTCMessageType.END_CALL.type,
             channelId = talkplusCall.channelId,
@@ -306,21 +309,24 @@ internal class RtcClient(
             endReasonCode = endReasonCode,
             endReasonMessage = endReasonMessage
         )
+        deAllocation()
         TalkPlusImpl.sendMessage(Gson().toJson(endCallRequest))
     }
 
-    fun deAllocation() {
+    private fun deAllocation() {
         peerConnection?.close()
         peerConnection = null
         peerConnectionFactory = null
+        videoCapturer = null
         val receiveCandidates: Array<IceCandidate?> = arrayOfNulls(receiveCandidate.size)
         receiveCandidate.forEachIndexed { index, candidate -> receiveCandidates[index] = candidate }
         peerConnection?.removeIceCandidates(receiveCandidates)
         receiveCandidate.clear()
     }
 
-    fun allocation() {
+    private fun allocation() {
         initPeerConnectionFactory()
+        videoCapturer = getVideoCapturer()
         peerConnectionFactory = buildPeerConnectionFactory()
         peerConnection = buildPeerConnection()
         localVideoSource = peerConnectionFactory?.createVideoSource(false) ?: error("")
@@ -386,13 +392,14 @@ internal class RtcClient(
                 CoroutineScope(Dispatchers.Main).launch {
                     directCallListener.ended(endCallInfo)
                 }
+                deAllocation()
+                allocation()
             }
         }
     }
 
     private fun peerConnectionObserver(): PeerConnectionObserver = object : PeerConnectionObserver() {
         override fun onIceCandidate(iceCandidate: IceCandidate) {
-            // offer, answer로 분기
             when (type) {
                 "offer" -> sendCandidate.add(iceCandidate)
                 "answer" -> signallingClient.sendIceCandidate(

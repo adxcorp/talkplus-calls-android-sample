@@ -41,6 +41,8 @@ class CallViewModel(
     val callState: SharedFlow<CallUiState>
         get() = _callState.asSharedFlow()
 
+    var isEndCall = false
+
     fun login(
         userId: String,
         userName: String
