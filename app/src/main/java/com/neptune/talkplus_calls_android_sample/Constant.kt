@@ -7,7 +7,7 @@ object Constant {
 
     /** 재천님 채널 **/
     private const val TEAM_APP_ID = "4838bd92-7447-4f11-abbc-8a2b11e22a06"
-    private const val TEAM_CHANNEL_ID = "6618e0cebb7314000100002d"
+    private const val TEAM_CHANNEL_ID = "661f64850846780001000004"
 
     const val TEST_APP_ID = MY_APP_ID
     const val TEST_CHANNEL_ID = MY_CHANNEL_ID
