@@ -35,14 +35,6 @@ class TPWebRTCClient(
         rtcClient.acceptCall()
     }
 
-    fun enableVideo(isEnabled: Boolean) {
-        rtcClient.enableVideo(isEnabled)
-    }
-
-    fun enableAudio(isEnabled: Boolean) {
-        rtcClient.enableAudio(isEnabled)
-    }
-
     fun endCall() {
         // TODO enum화
         rtcClient.endCall(
@@ -50,6 +42,14 @@ class TPWebRTCClient(
             endReasonCode = 1,
             endReasonMessage = "completed"
         )
+    }
+
+    fun enableVideo(isEnabled: Boolean) {
+        rtcClient.enableVideo(isEnabled)
+    }
+
+    fun enableAudio(isEnabled: Boolean) {
+        rtcClient.enableAudio(isEnabled)
     }
 
     private fun getRtcClient(rtcConnectionConfig: RTCConnectionConfig): RtcClient {

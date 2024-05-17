@@ -11,5 +11,6 @@ interface DirectCallListener {
     fun ended(endCallInfo: EndCallInfo)
     fun failed(talkPlusCall: TalkPlusCall)
     fun stateChanged(talkPlusCall: TalkPlusCall, state: PeerConnection.IceConnectionState)
+    fun disConnect(talkPlusCall: TalkPlusCall)
     fun error()
 }

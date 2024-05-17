@@ -27,16 +27,14 @@ import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import core.TPWebRTCClient
 import events.DirectCallListener
 import io.talkplus.entity.user.TPNotificationPayload
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import model.EndCallInfo
 import org.webrtc.PeerConnection
 
 class CallActivity : AppCompatActivity() {
     private val binding: ActivityCallBinding by lazy { ActivityCallBinding.inflate(layoutInflater) }
-    private lateinit var tpWebRTCClient: TPWebRTCClient
     private val callViewModel: CallViewModel by lazy { ViewModelProvider(this)[CallViewModel::class.java] }
+    private lateinit var tpWebRTCClient: TPWebRTCClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -236,6 +234,10 @@ class CallActivity : AppCompatActivity() {
         }
 
         override fun stateChanged(talkPlusCall: TalkPlusCall, state: PeerConnection.IceConnectionState) {
+
+        }
+
+        override fun disConnect(talkPlusCall: TalkPlusCall) {
 
         }
 

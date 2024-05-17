@@ -56,6 +56,7 @@ internal class RtcClient(
      * 렌더링 API와 기본 네이티브 플랫폼 윈도우 시스템 간의 인터페이스 역할을 하는 기술
      * WebRTC에서 주로 비디오 프레임 렌더링에 사용됨.
      * **/
+
     private val rootEglBase: EglBase = EglBase.create()
     private var type: String = ""
 
@@ -430,6 +431,7 @@ internal class RtcClient(
             when (iceConnectionState) {
                 PeerConnection.IceConnectionState.CONNECTED -> mainDispatcher.launch { directCallListener.connected(talkplusCall) }
                 PeerConnection.IceConnectionState.FAILED -> mainDispatcher.launch { directCallListener.failed(talkplusCall) }
+                PeerConnection.IceConnectionState.DISCONNECTED -> mainDispatcher.launch { directCallListener.disConnect(talkplusCall) }
                 else -> mainDispatcher.launch { directCallListener.stateChanged(talkplusCall, iceConnectionState) }
             }
         }
