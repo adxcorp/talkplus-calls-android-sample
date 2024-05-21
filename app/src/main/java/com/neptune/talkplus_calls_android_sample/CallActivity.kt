@@ -76,6 +76,7 @@ class CallActivity : AppCompatActivity() {
                             turnServerUris = tpRtcConfiguration.turnServerUris
                         )
                         this@CallActivity.rtcConnectionConfig = rtcConnectionConfig
+                        tpWebRTCClient = setTpWebRTCClient()
                         startConnect()
                     }
 
@@ -209,8 +210,6 @@ class CallActivity : AppCompatActivity() {
     }
 
     private fun startConnect() {
-        tpWebRTCClient = setTpWebRTCClient()
-
         with(tpWebRTCClient) {
             setLocalVideo(binding.surfaceLocal)
             setRemoteVideo(binding.surfaceRemote)
