@@ -1,5 +1,6 @@
 package core
 
+import android.util.Log
 import com.neptune.talkpluscallsandroid.webrtc.core.RtcClient
 import com.neptune.talkpluscallsandroid.webrtc.model.RTCConnectionConfig
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
@@ -10,8 +11,9 @@ import org.webrtc.SurfaceViewRenderer
 import java.lang.Exception
 
 class TPWebRTCClient(
-    private val talkPlusCall: TalkPlusCall,
-    private val directCallListener: DirectCallListener
+    var talkPlusCall: TalkPlusCall,
+    private val directCallListener: DirectCallListener,
+    private val rtcConnectionConfig: RTCConnectionConfig
 ) {
     private lateinit var rtcClient: RtcClient
 
@@ -28,19 +30,41 @@ class TPWebRTCClient(
     }
 
     fun makeCall(talkplusCall: TalkPlusCall) {
+        rtcClient.setTalkPlusCall(talkplusCall)
         rtcClient.makeCall(talkplusCall)
     }
 
     fun acceptCall() {
+        rtcClient.setTalkPlusCall(talkPlusCall)
         rtcClient.acceptCall()
     }
 
     fun endCall() {
         // TODO enum화
+        rtcClient.setTalkPlusCall(talkPlusCall)
         rtcClient.endCall(
             talkplusCall = talkPlusCall,
             endReasonCode = 1,
             endReasonMessage = "completed"
+        )
+    }
+
+    fun decline() {
+        // TODO enum화
+        rtcClient.setTalkPlusCall(talkPlusCall)
+        rtcClient.endCall(
+            talkplusCall = talkPlusCall,
+            endReasonCode = 2,
+            endReasonMessage = "decline"
+        )
+    }
+
+    fun cancel() {
+        rtcClient.setTalkPlusCall(talkPlusCall)
+        rtcClient.endCall(
+            talkplusCall = talkPlusCall,
+            endReasonCode = 3,
+            endReasonMessage = "cancel"
         )
     }
 
@@ -62,21 +86,7 @@ class TPWebRTCClient(
     }
 
     private fun setRtcClient() {
-        TalkPlus.getWebRtcConfiguration(object : TalkPlus.CallbackListener<TPRtcConfiguration> {
-            override fun onSuccess(tpRtcConfiguration: TPRtcConfiguration) {
-                val rtcConnectionConfig = RTCConnectionConfig(
-                    turnPassword = tpRtcConfiguration.turnPassword,
-                    turnUsername = tpRtcConfiguration.turnUsername,
-                    stunServerUris = tpRtcConfiguration.stunServerUris,
-                    turnServerUris = tpRtcConfiguration.turnServerUris
-                )
-                rtcClient = getRtcClient(rtcConnectionConfig)
-            }
-
-            override fun onFailure(p0: Int, p1: Exception?) {
-
-            }
-        })
+        rtcClient = getRtcClient(rtcConnectionConfig)
     }
 
     companion object {

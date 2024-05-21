@@ -9,6 +9,15 @@ object Constant {
     private const val TEAM_APP_ID = "4838bd92-7447-4f11-abbc-8a2b11e22a06"
     private const val TEAM_CHANNEL_ID = "661f64850846780001000004"
 
-    const val TEST_APP_ID = MY_APP_ID
-    const val TEST_CHANNEL_ID = MY_CHANNEL_ID
+    const val TEST_APP_ID = TEAM_APP_ID
+    const val TEST_CHANNEL_ID = TEAM_CHANNEL_ID
 }
+
+
+
+// d3f1dc61-a4af-42e0-9315-0f6cfc1910d0
+// d3f1dc61-a4af-42e0-9315-0f6cfc1910d0
+
+
+
+

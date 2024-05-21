@@ -4,17 +4,11 @@ import android.app.NotificationManager
 import android.content.Context
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.neptune.talkplus_calls_android_sample.Constant.TEST_CHANNEL_ID
-import com.neptune.talkplus_calls_android_sample.data.model.base.Result
-import com.neptune.talkplus_calls_android_sample.data.model.base.WrappedFailResult
-import com.neptune.talkplus_calls_android_sample.data.repository.auth.AuthenticationRepositoryImpl
 import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
 import com.neptune.talkpluscallsandroid.webrtc.model.SignalingMessageType
-import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import com.neptune.talkpluscallsandroid.webrtc.model.WebRTCMessageType
 import io.talkplus.TalkPlus
 import io.talkplus.entity.channel.TPChannel
@@ -22,9 +16,6 @@ import io.talkplus.entity.user.TPNotificationPayload
 import io.talkplus.entity.user.TPUser
 import io.talkplus.internal.api.TalkPlusImpl
 import io.talkplus.params.TPLoginParams
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.lang.Exception
 
 class DeclineActivity : AppCompatActivity() {
@@ -69,6 +60,7 @@ class DeclineActivity : AppCompatActivity() {
                 endReasonMessage = "Callee Canceled"
             )
             TalkPlusImpl.sendMessage(Gson().toJson(endCallRequest))
+            finish()
         }
     }
 

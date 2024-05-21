@@ -3,6 +3,7 @@ package com.neptune.talkpluscallsandroid.webrtc.core
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import com.neptune.talkplus_calls_android_sample.TPFirebaseMessagingService
 import com.neptune.talkpluscallsandroid.webrtc.events.PeerConnectionObserver
 import com.neptune.talkpluscallsandroid.webrtc.events.SignalingClientListener
 import com.neptune.talkpluscallsandroid.webrtc.model.RTCConnectionConfig
@@ -10,10 +11,13 @@ import com.neptune.talkpluscallsandroid.webrtc.model.SignalingMessageType
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
 import com.neptune.talkpluscallsandroid.webrtc.model.WebRTCMessageType
 import events.DirectCallListener
+import io.talkplus.TalkPlus
 import io.talkplus.internal.api.TalkPlusImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import model.EndCallInfo
 import org.webrtc.AudioTrack
 import org.webrtc.Camera2Enumerator
@@ -43,12 +47,18 @@ import org.webrtc.VideoTrack
 
 internal class RtcClient(
     private val context: Context,
-    private val talkplusCall: TalkPlusCall,
+    private var talkplusCall: TalkPlusCall,
     private val rtcConnectionConfig: RTCConnectionConfig,
     private val directCallListener: DirectCallListener
 ) {
+    private var isNotification = true
+
     init {
         initPeerConnectionFactory()
+    }
+
+    fun setTalkPlusCall(talkPlusCall: TalkPlusCall) {
+        this.talkplusCall = talkPlusCall
     }
 
     /**
@@ -104,6 +114,7 @@ internal class RtcClient(
     }
 
     private fun buildPeerConnection(): PeerConnection = with(rtcConnectionConfig) {
+        Log.d(TAG, "buildPeerConnection")
         val icesServers: ArrayList<PeerConnection.IceServer> = arrayListOf()
 
         stunServerUris.forEach { stunServerUri ->
@@ -125,11 +136,13 @@ internal class RtcClient(
         initSurfaceView(surfaceViewRenderer)
         startLocalVideoCapture(surfaceViewRenderer)
         localSurfaceView = surfaceViewRenderer
+        Log.d("view state : ", "setLocalVideo $localSurfaceView")
     }
 
     fun setRemoteVideo(surfaceViewRenderer: SurfaceViewRenderer) {
         initSurfaceView(surfaceViewRenderer)
         remoteSurfaceView = surfaceViewRenderer
+        Log.d("view state : ", "setRemoteVideo $remoteSurfaceView")
     }
 
     private fun initSurfaceView(surfaceViewRenderer: SurfaceViewRenderer) {
@@ -227,7 +240,9 @@ internal class RtcClient(
     // createAnswer
     fun acceptCall() {
         type = "answer"
-        signallingClient.offerReceive(talkplusCall.sdp)
+        if (isNotification) {
+            signallingClient.offerReceive(talkplusCall.sdp)
+        }
         Log.d(TAG, "createAnswer")
         val mediaConstraints: MediaConstraints = MediaConstraints().apply {
             mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", "true"))
@@ -302,6 +317,8 @@ internal class RtcClient(
         endReasonCode: Int,
         endReasonMessage: String
     ) {
+        deAllocation()
+        allocation()
         val endCallRequest: SignalingMessageType = SignalingMessageType.EndCallRequest(
             type = WebRTCMessageType.END_CALL.type,
             channelId = talkplusCall.channelId,
@@ -311,7 +328,7 @@ internal class RtcClient(
             endReasonCode = endReasonCode,
             endReasonMessage = endReasonMessage
         )
-        deAllocation()
+        type = ""
         TalkPlusImpl.sendMessage(Gson().toJson(endCallRequest))
     }
 
@@ -323,6 +340,7 @@ internal class RtcClient(
         peerConnection = null
         peerConnectionFactory = null
         videoCapturer = null
+        remoteSurfaceView = null
         receiveCandidate.clear()
     }
 
@@ -356,9 +374,18 @@ internal class RtcClient(
             override fun onOfferReceived(description: SessionDescription) {
                 Log.d(TAG, "onOfferReceived")
                 onRemoteSessionReceived(description)
-                CoroutineScope(Dispatchers.Main).launch {
-                    directCallListener.inComing(talkplusCall)
+
+                // current : false
+                if (!isNotification) {
+                    mainDispatcher.launch {
+                        directCallListener.inComing(
+                            talkplusCall.copy(
+                                sdp = description.description,
+                                uuid = TPFirebaseMessagingService.uuid
+                            ))
+                    }
                 }
+                isNotification = false
             }
 
             override fun onAnswerReceived(description: SessionDescription) {
@@ -420,6 +447,8 @@ internal class RtcClient(
         override fun onAddTrack(rtpReceiver: RtpReceiver, mediaStreams: Array<MediaStream>) {
             super.onAddTrack(rtpReceiver, mediaStreams)
             Log.d(TAG, mediaStreams[0].videoTracks.size.toString())
+
+            Log.d(TAG + "view state : ", remoteSurfaceView.toString())
 
             if (mediaStreams[0].videoTracks.size != 0) {
                 mediaStreams[0].videoTracks[0].addSink(remoteSurfaceView)

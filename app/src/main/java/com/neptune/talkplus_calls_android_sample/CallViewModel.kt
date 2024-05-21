@@ -31,8 +31,8 @@ class CallViewModel(
     var sdp: String = ""
         private set
 
-    lateinit var talkPlusCall: TalkPlusCall
-        private set
+    var talkPlusCall: TalkPlusCall = TalkPlusCall()
+
 
     lateinit var connectionConfig: RTCConnectionConfig
         private set
@@ -42,6 +42,7 @@ class CallViewModel(
         get() = _callState.asSharedFlow()
 
     var isEndCall = false
+    var isConnected = false
 
     fun login(
         userId: String,
@@ -51,11 +52,20 @@ class CallViewModel(
             .setUserName(userName)
             .build()
 
+        Log.d(TAG, userId.toString())
+        Log.d(TAG, userName.toString())
+
         viewModelScope.launch {
             authRepository.login(params).collect { callbackResult ->
                 when (callbackResult) {
-                    is Result.Success -> _callState.emit(CallUiState.Login(callbackResult.successData))
-                    is Result.Failure -> _callState.emit(CallUiState.Failed(callbackResult.failResult))
+                    is Result.Success -> {
+                        Log.d(TAG, "success : ${callbackResult.successData.toString()}")
+                        _callState.emit(CallUiState.Login(callbackResult.successData))
+                    }
+                    is Result.Failure -> {
+                        Log.d(TAG, "failed : ${callbackResult.failResult.toString()}")
+                        _callState.emit(CallUiState.Failed(callbackResult.failResult))
+                    }
                 }
             }
         }
