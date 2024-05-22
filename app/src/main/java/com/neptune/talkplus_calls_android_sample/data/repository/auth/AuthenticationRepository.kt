@@ -1,6 +1,6 @@
 package com.neptune.talkplus_calls_android_sample.data.repository.auth
 
-import com.neptune.talkplus_calls_android_sample.Constant.TEST_CHANNEL_ID
+import com.neptune.talkplus_calls_android_sample.commons.Constant.TEST_CHANNEL_ID
 import com.neptune.talkplus_calls_android_sample.data.model.base.WrappedFailResult
 import com.neptune.talkplus_calls_android_sample.data.model.base.Result
 import io.talkplus.entity.user.TPUser
@@ -14,5 +14,5 @@ class AuthenticationRepository(private val authRepositoryImpl: AuthenticationRep
     fun joinChannel(channelId: String = TEST_CHANNEL_ID): Flow<Result<TPChannel, WrappedFailResult>> = authRepositoryImpl.joinChannel(channelId)
     fun enablePushNotification(): Flow<Result<TPUser, WrappedFailResult>> = authRepositoryImpl.enablePushNotification()
     fun registerFcmToken(fcmToken: String): Flow<Result<Unit, WrappedFailResult>> = authRepositoryImpl.registerFcmToken(fcmToken)
-    fun getConnectionConfig(): Flow<Result<TPRtcConfiguration, WrappedFailResult>> = authRepositoryImpl.getConnectionConfig()
+    fun getCallConfiguration(): Flow<Result<TPRtcConfiguration, WrappedFailResult>> = authRepositoryImpl.getConnectionConfig()
 }

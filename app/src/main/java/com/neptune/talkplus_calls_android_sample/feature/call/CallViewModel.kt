@@ -1,47 +1,31 @@
-package com.neptune.talkplus_calls_android_sample
+package com.neptune.talkplus_calls_android_sample.feature.call
 
-import android.util.Log
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.messaging.FirebaseMessaging
 import com.neptune.talkplus_calls_android_sample.data.model.base.Result
 import com.neptune.talkplus_calls_android_sample.data.repository.auth.AuthenticationRepository
-import com.neptune.talkpluscallsandroid.webrtc.model.RTCConnectionConfig
-import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCall
-import io.talkplus.entity.user.TPNotificationPayload
+import com.neptune.talkpluscallsandroid.webrtc.model.TalkplusCallParams
 import io.talkplus.params.TPLoginParams
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-private const val TAG = "CallViewModel!!"
 
-class CallViewModel(
-    private val authRepository: AuthenticationRepository = AuthenticationRepository()
-) : ViewModel() {
+class CallViewModel(private val authRepository: AuthenticationRepository = AuthenticationRepository()) : ViewModel() {
     var isEnableLocalAudio: Boolean = true
         private set
 
     var isEnableLocalVideo: Boolean = true
         private set
 
-    var sdp: String = ""
-        private set
-
-    var talkPlusCall: TalkPlusCall = TalkPlusCall()
-
-
-    lateinit var connectionConfig: RTCConnectionConfig
-        private set
+    var talkPlusCallParams: TalkplusCallParams = TalkplusCallParams()
 
     private var _callState = MutableSharedFlow<CallUiState>()
     val callState: SharedFlow<CallUiState>
         get() = _callState.asSharedFlow()
 
-    var isEndCall = false
     var isConnected = false
 
     fun login(
@@ -52,20 +36,11 @@ class CallViewModel(
             .setUserName(userName)
             .build()
 
-        Log.d(TAG, userId.toString())
-        Log.d(TAG, userName.toString())
-
         viewModelScope.launch {
             authRepository.login(params).collect { callbackResult ->
                 when (callbackResult) {
-                    is Result.Success -> {
-                        Log.d(TAG, "success : ${callbackResult.successData.toString()}")
-                        _callState.emit(CallUiState.Login(callbackResult.successData))
-                    }
-                    is Result.Failure -> {
-                        Log.d(TAG, "failed : ${callbackResult.failResult.toString()}")
-                        _callState.emit(CallUiState.Failed(callbackResult.failResult))
-                    }
+                    is Result.Success -> _callState.emit(CallUiState.Login(callbackResult.successData))
+                    is Result.Failure -> _callState.emit(CallUiState.Failed(callbackResult.failResult))
                 }
             }
         }
@@ -93,30 +68,22 @@ class CallViewModel(
         }
     }
 
-    private fun registerFcmToken(fcmToken: String) {
+    fun getCallConfiguration() {
         viewModelScope.launch {
-            authRepository.registerFcmToken(fcmToken).collect { callbackResult ->
+            authRepository.getCallConfiguration().collect { callbackResult ->
                 when (callbackResult) {
-                    is Result.Success -> _callState.emit(CallUiState.RegisterToken)
+                    is Result.Success -> _callState.emit(CallUiState.GetCallConfiguration(callbackResult.successData))
                     is Result.Failure -> _callState.emit(CallUiState.Failed(callbackResult.failResult))
                 }
             }
         }
     }
 
-    private fun setConnectionConfig() {
+    private fun registerFcmToken(fcmToken: String) {
         viewModelScope.launch {
-            authRepository.getConnectionConfig().collect { callbackResult ->
+            authRepository.registerFcmToken(fcmToken).collect { callbackResult ->
                 when (callbackResult) {
-                    is Result.Success -> {
-                        val tpRtcConfiguration = callbackResult.successData
-                        connectionConfig = RTCConnectionConfig(
-                            turnServerUris = tpRtcConfiguration.turnServerUris,
-                            stunServerUris = tpRtcConfiguration.stunServerUris,
-                            turnPassword = tpRtcConfiguration.turnPassword,
-                            turnUsername = tpRtcConfiguration.turnUsername
-                        )
-                    }
+                    is Result.Success -> _callState.emit(CallUiState.RegisterToken)
                     is Result.Failure -> _callState.emit(CallUiState.Failed(callbackResult.failResult))
                 }
             }
@@ -135,6 +102,5 @@ class CallViewModel(
 
     fun setLocalAudio(isEnable: Boolean) { isEnableLocalAudio = isEnable }
     fun setLocalVideo(isEnable: Boolean) { isEnableLocalVideo = isEnable }
-    fun setTalkplusCall(talkPlusCall: TalkPlusCall) { this.talkPlusCall = talkPlusCall }
-    fun setSdp(sdp: String) { this.sdp = sdp }
+    fun setTalkplusCall(talkPlusCallParams: TalkplusCallParams) { this.talkPlusCallParams = talkPlusCallParams }
 }

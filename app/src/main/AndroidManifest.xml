@@ -12,7 +12,6 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:name=".app.TPApplication"
@@ -27,13 +26,13 @@
         tools:targetApi="34">
         <activity
             android:theme="@style/Transparent"
-            android:name=".DeclineActivity"
+            android:name=".feature.call.DeclineActivity"
             android:exported="false" />
         <activity
-            android:name=".CallActivity"
+            android:name=".feature.call.CallActivity"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
+            android:name=".feature.intro.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -43,7 +42,7 @@
         </activity>
 
         <service
-            android:name=".TPFirebaseMessagingService"
+            android:name=".background.TPFirebaseMessagingService"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

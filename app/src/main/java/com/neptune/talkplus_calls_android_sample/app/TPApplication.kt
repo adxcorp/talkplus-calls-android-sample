@@ -1,7 +1,7 @@
 package com.neptune.talkplus_calls_android_sample.app
 
 import android.app.Application
-import com.neptune.talkplus_calls_android_sample.Constant.TEST_APP_ID
+import com.neptune.talkplus_calls_android_sample.commons.Constant.TEST_APP_ID
 import io.talkplus.TalkPlus
 
 class TPApplication : Application() {

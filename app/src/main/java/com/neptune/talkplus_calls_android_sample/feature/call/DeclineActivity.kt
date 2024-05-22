@@ -1,4 +1,4 @@
-package com.neptune.talkplus_calls_android_sample
+package com.neptune.talkplus_calls_android_sample.feature.call
 
 import android.app.NotificationManager
 import android.content.Context
@@ -6,7 +6,9 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import com.google.gson.Gson
-import com.neptune.talkplus_calls_android_sample.Constant.TEST_CHANNEL_ID
+import com.neptune.talkplus_calls_android_sample.R
+import com.neptune.talkplus_calls_android_sample.background.TPFirebaseMessagingService
+import com.neptune.talkplus_calls_android_sample.commons.Constant.TEST_CHANNEL_ID
 import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
 import com.neptune.talkpluscallsandroid.webrtc.model.SignalingMessageType
 import com.neptune.talkpluscallsandroid.webrtc.model.WebRTCMessageType

@@ -1,4 +1,4 @@
-package com.neptune.talkplus_calls_android_sample
+package com.neptune.talkplus_calls_android_sample.background
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -12,6 +12,8 @@ import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
+import com.neptune.talkplus_calls_android_sample.feature.call.CallActivity
+import com.neptune.talkplus_calls_android_sample.feature.call.DeclineActivity
 import io.talkplus.TalkPlus
 import io.talkplus.entity.user.TPNotificationPayload
 import org.json.JSONObject
@@ -28,15 +30,10 @@ class TPFirebaseMessagingService : FirebaseMessagingService() {
             val pushNotificationResponse: JSONObject = remoteMessage.data["talkplus"]?.let { JSONObject(it) } ?: return
             when (pushNotificationResponse.getString("type")) {
                 "offer" -> {
-                    inComing2(pushNotificationResponse.getString("notificationLink"))
                     if (!isCalling) {
                         inComing(pushNotificationResponse.getString("notificationLink"))
                         isCalling = true
-                        return
                     }
-                }
-                "answer" -> {
-                    isCalling = true
                 }
                 "endCall" -> closeNotification()
             }
@@ -46,16 +43,6 @@ class TPFirebaseMessagingService : FirebaseMessagingService() {
     private fun inComing(notificationLink: String) {
         TalkPlus.getNotificationPayload(notificationLink, object : TalkPlus.CallbackListener<TPNotificationPayload> {
             override fun onSuccess(tpNotificationPayload: TPNotificationPayload) { showNotification(tpNotificationPayload) }
-            override fun onFailure(errorCode: Int, e: Exception) { Log.d(TAG, "$errorCode ${e.message}") }
-        })
-    }
-
-    private fun inComing2(notificationLink: String) {
-        TalkPlus.getNotificationPayload(notificationLink, object : TalkPlus.CallbackListener<TPNotificationPayload> {
-            override fun onSuccess(tpNotificationPayload: TPNotificationPayload) {
-                uuid = tpNotificationPayload.uuid
-                Log.d("!! uuid :", uuid)
-            }
             override fun onFailure(errorCode: Int, e: Exception) { Log.d(TAG, "$errorCode ${e.message}") }
         })
     }
@@ -72,7 +59,6 @@ class TPFirebaseMessagingService : FirebaseMessagingService() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra(DeclineActivity.INTENT_EXTRA_NOTIFICATION_PAYLOAD, tpNotificationPayload)
         }
-
 
         val notificationBuilder: NotificationCompat.Builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("TalkPlus")
@@ -116,8 +102,6 @@ class TPFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
         private const val TAG = "MyFirebaseMessagingService!!"
-
-        var uuid = ""
 
         const val CHANNEL_ID: String = "TalkPlusCallas"
         const val NOTIFICATION_ID = 1
