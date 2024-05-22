@@ -45,6 +45,9 @@ import org.webrtc.VideoTrack
 
 // TODO : 예외처리 스펙 정하기 -> error, exception, throw
 
+
+// c527354a-e92a-4082-80f7-4d45844f53e3
+
 internal class RtcClient(
     private val context: Context,
     private var talkplusCall: TalkPlusCall,
@@ -241,7 +244,10 @@ internal class RtcClient(
     fun acceptCall() {
         type = "answer"
         if (isNotification) {
-            signallingClient.offerReceive(talkplusCall.sdp)
+            signallingClient.offerReceive(
+                talkplusCall.sdp,
+                talkplusCall.uuid
+            )
         }
         Log.d(TAG, "createAnswer")
         val mediaConstraints: MediaConstraints = MediaConstraints().apply {
@@ -371,7 +377,7 @@ internal class RtcClient(
                 Log.d(TAG, "onConnectionEstablished")
             }
 
-            override fun onOfferReceived(description: SessionDescription) {
+            override fun onOfferReceived(description: SessionDescription, uuid: String) {
                 Log.d(TAG, "onOfferReceived")
                 onRemoteSessionReceived(description)
 
@@ -381,14 +387,14 @@ internal class RtcClient(
                         directCallListener.inComing(
                             talkplusCall.copy(
                                 sdp = description.description,
-                                uuid = TPFirebaseMessagingService.uuid
+                                uuid = uuid
                             ))
                     }
                 }
                 isNotification = false
             }
 
-            override fun onAnswerReceived(description: SessionDescription) {
+            override fun onAnswerReceived(description: SessionDescription, uuid: String) {
                 Log.d(TAG, "onAnswerReceived")
                 onRemoteSessionReceived(description)
                 sendCandidate.forEach { iceCandidate ->
@@ -396,7 +402,7 @@ internal class RtcClient(
                         candidate = iceCandidate,
                         targetUserId = talkplusCall.calleeId,
                         channelId = talkplusCall.channelId,
-                        uuid = talkplusCall.uuid
+                        uuid = uuid
                     )
                 }
             }

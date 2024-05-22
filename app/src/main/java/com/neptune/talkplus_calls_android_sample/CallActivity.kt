@@ -237,18 +237,16 @@ class CallActivity : AppCompatActivity() {
 
     private val directCallListener: DirectCallListener = object : DirectCallListener {
         override fun inComing(talkPlusCall: TalkPlusCall) {
-            Handler(Looper.getMainLooper()).postDelayed({
-                callViewModel.talkPlusCall = talkPlusCall.copy(uuid = TPFirebaseMessagingService.uuid)
-                tpWebRTCClient.talkPlusCall = talkPlusCall.copy(uuid = TPFirebaseMessagingService.uuid)
-                Log.d(TAG + "inComing! : ", tpWebRTCClient.talkPlusCall.toString())
-                showAcceptDialog()
-                alert?.show()
-            }, 500)
+            callViewModel.talkPlusCall = talkPlusCall.copy(uuid = talkPlusCall.uuid)
+            tpWebRTCClient.talkPlusCall = talkPlusCall.copy(uuid = talkPlusCall.uuid)
+            Log.d(TAG + "inComing! : ", tpWebRTCClient.talkPlusCall.toString())
+            showAcceptDialog()
+            alert?.show()
         }
 
-        // 51ef4b12-43ee-43f5-b23d-cac4f8b3949d
-        // c2261fae-9feb-40c5-805f-0ec285a93d5a
-        // 2d64a82f-e60d-40fd-81d7-b5ce51db7130
+
+        // 301d99bc-dbd2-416a-9433-3202915301be
+        // 3f0d904c-5593-4fcf-bf66-9ba79ef4cec8
 
 
         override fun connected(talkPlusCall: TalkPlusCall) {
@@ -329,6 +327,10 @@ class CallActivity : AppCompatActivity() {
         super.onDestroy()
         TPFirebaseMessagingService.isCalling = false
     }
+
+
+    // 2cd970fb-925a-4c13-99e0-04703d4af02f
+    //
 
     companion object {
         private const val TAG = "CallActivity!!"

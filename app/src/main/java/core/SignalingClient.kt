@@ -27,12 +27,25 @@ class SignalingClient(
         Log.d(TAG, "start connect")
         TalkPlusImpl.sendType.observe(ProcessLifecycleOwner.get()) { payload: Map<String, Any> ->
             when (payload["type"]) {
-                WebRTCMessageType.OFFER.type -> offerReceive(payload["sessionDescription"].toString())
-                WebRTCMessageType.ANSWER.type -> answerReceive(payload["sessionDescription"].toString())
+                WebRTCMessageType.OFFER.type -> {
+                    offerReceive(
+                        payload["sessionDescription"].toString(),
+                        payload["uuid"].toString()
+                    )
+                }
+
+                WebRTCMessageType.ANSWER.type -> {
+                    answerReceive(
+                        payload["sessionDescription"].toString(),
+                        payload["uuid"].toString()
+                    )
+                }
+
                 WebRTCMessageType.END_CALL.type -> handleReasonCode(
                     reasonCode = payload["endReasonCode"].toString().toInt(),
                     reasonMessage = payload["endReasonMessage"].toString()
                 )
+
                 WebRTCMessageType.CANDIDATE.type -> {
                     val iceCandidate: IceCandidate = IceCandidate(
                         payload["sdpMid"].toString(),
@@ -45,23 +58,23 @@ class SignalingClient(
         }
     }
 
-    fun offerReceive(sessionDescription: String) {
-        Log.d(TAG, "offerReceive$sessionDescription")
+    fun offerReceive(sessionDescription: String, uuid: String) {
+        Log.d(TAG, "offerReceive $uuid")
         signalingClientListener.onOfferReceived(
             SessionDescription(
                 SessionDescription.Type.OFFER,
                 sessionDescription
-            )
+            ), uuid
         )
     }
 
-    private fun answerReceive(sessionDescription: String) {
-        Log.d(TAG, "answerReceive$sessionDescription")
+    private fun answerReceive(sessionDescription: String, uuid: String) {
+        Log.d(TAG, "answerReceive $uuid")
         signalingClientListener.onAnswerReceived(
             SessionDescription(
                 SessionDescription.Type.ANSWER,
                 sessionDescription
-            )
+            ), uuid
         )
     }
 
@@ -100,6 +113,9 @@ class SignalingClient(
         )
         TalkPlusImpl.sendMessage(Gson().toJson(iceCandidateRequest))
     }
+
+    // ced30560-b557-4482-bbc0-0f816785107f
+
 
     companion object {
         private const val TAG = "SignallingClient!!"
