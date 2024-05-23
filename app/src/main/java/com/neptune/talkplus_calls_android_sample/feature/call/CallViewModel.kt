@@ -6,7 +6,7 @@ import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.messaging.FirebaseMessaging
 import com.neptune.talkplus_calls_android_sample.data.model.base.Result
 import com.neptune.talkplus_calls_android_sample.data.repository.auth.AuthenticationRepository
-import com.neptune.talkpluscallsandroid.webrtc.model.TalkplusCallParams
+import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCallParams
 import io.talkplus.params.TPLoginParams
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -20,7 +20,7 @@ class CallViewModel(private val authRepository: AuthenticationRepository = Authe
     var isEnableLocalVideo: Boolean = true
         private set
 
-    var talkPlusCallParams: TalkplusCallParams = TalkplusCallParams()
+    var talkPlusCallParams: TalkPlusCallParams = TalkPlusCallParams()
 
     private var _callState = MutableSharedFlow<CallUiState>()
     val callState: SharedFlow<CallUiState>
@@ -102,5 +102,5 @@ class CallViewModel(private val authRepository: AuthenticationRepository = Authe
 
     fun setLocalAudio(isEnable: Boolean) { isEnableLocalAudio = isEnable }
     fun setLocalVideo(isEnable: Boolean) { isEnableLocalVideo = isEnable }
-    fun setTalkplusCall(talkPlusCallParams: TalkplusCallParams) { this.talkPlusCallParams = talkPlusCallParams }
+    fun setTalkplusCall(talkPlusCallParams: TalkPlusCallParams) { this.talkPlusCallParams = talkPlusCallParams }
 }

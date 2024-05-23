@@ -2,7 +2,6 @@ package com.neptune.talkplus_calls_android_sample.feature.call
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Lifecycle
@@ -18,9 +17,10 @@ import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
 import com.neptune.talkplus_calls_android_sample.extensions.showToast
 import com.neptune.talkpluscallsandroid.webrtc.core.TPWebRTCClient
 import com.neptune.talkpluscallsandroid.webrtc.event.DirectCallListener
+import com.neptune.talkpluscallsandroid.webrtc.event.OnCallResult
 import com.neptune.talkpluscallsandroid.webrtc.model.EndCallInfo
 import com.neptune.talkpluscallsandroid.webrtc.model.EndCallStatus
-import com.neptune.talkpluscallsandroid.webrtc.model.TalkplusCallParams
+import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCallParams
 import io.talkplus.entity.user.TPNotificationPayload
 import io.talkplus.entity.user.TPRtcConfiguration
 import kotlinx.coroutines.launch
@@ -62,13 +62,13 @@ class CallActivity : AppCompatActivity() {
     }
 
     private fun setClickListener() = with(binding) {
-        surfaceLocal.setOnClickListener { tpWebRTCClient.makeCall(callViewModel.talkPlusCallParams) }
+        surfaceLocal.setOnClickListener { makeCall() }
         ivAudio.setOnClickListener { toggleAudio() }
         ivVideo.setOnClickListener { toggleVideo() }
         ivEndCall.setOnClickListener {
             when (callViewModel.isConnected) {
-                true -> tpWebRTCClient.endCall()
-                false -> tpWebRTCClient.cancel()
+                true -> endCall()
+                false -> cancel()
             }
             showToast("상대방과의 통화가 끊어졌습니다.")
             reLoadSurfaceView()
@@ -90,7 +90,7 @@ class CallActivity : AppCompatActivity() {
                     TPNotificationPayload::class.java
                 )?.let { payload ->
                     callViewModel.setTalkplusCall(
-                        TalkplusCallParams(
+                        TalkPlusCallParams(
                             callerId = payload.callerId,
                             calleeId = payload.calleeId,
                             channelId = payload.channelId,
@@ -103,7 +103,7 @@ class CallActivity : AppCompatActivity() {
 
             false -> {
                 callViewModel.setTalkplusCall(
-                    TalkplusCallParams(
+                    TalkPlusCallParams(
                         callerId = getStringExtra(INTENT_EXTRA_CALLER_ID) ?: "",
                         calleeId = getStringExtra(INTENT_EXTRA_CALLEE_ID) ?: "",
                         channelId = TEST_CHANNEL_ID
@@ -123,9 +123,9 @@ class CallActivity : AppCompatActivity() {
         when (intent.hasExtra(INTENT_EXTRA_NOTIFICATION_PAYLOAD)) {
             true -> {
                 closeNotification()
-                tpWebRTCClient.acceptCall()
+                acceptCall()
             }
-            false -> tpWebRTCClient.makeCall(callViewModel.talkPlusCallParams)
+            false -> makeCall()
         }
     }
 
@@ -133,21 +133,21 @@ class CallActivity : AppCompatActivity() {
         alert = AlertDialog.Builder(this)
             .setTitle("통화 요청")
             .setMessage("통화 요청이 왔습니다.")
-            .setPositiveButton("수락") { _, _ -> tpWebRTCClient.acceptCall() }
+            .setPositiveButton("수락") { _, _ -> acceptCall() }
             .setNegativeButton("거절") { _, _ ->
-                tpWebRTCClient.decline()
+                decline()
                 reLoadSurfaceView()
             }.create()
     }
 
     private val directCallListener: DirectCallListener = object : DirectCallListener {
-        override fun inComing(talkPlusCallParams: TalkplusCallParams) {
-            tpWebRTCClient.setTalkplusCallParamsParams(talkPlusCallParams.copy(uuid = talkPlusCallParams.uuid))
+        override fun inComing(talkPlusCallParams: TalkPlusCallParams) {
+            tpWebRTCClient.setTalkPlusCallParamsParams(talkPlusCallParams.copy(uuid = talkPlusCallParams.uuid))
             showAcceptDialog()
             alert?.show()
         }
 
-        override fun connected(talkPlusCallParams: TalkplusCallParams) {
+        override fun connected(talkPlusCallParams: TalkPlusCallParams) {
             callViewModel.isConnected = true
             binding.pbLoading.visibility = View.GONE
         }
@@ -174,10 +174,10 @@ class CallActivity : AppCompatActivity() {
             }
         }
 
-        override fun failed(talkPlusCallParams: TalkplusCallParams) {}
-        override fun stateChanged(talkPlusCallParams: TalkplusCallParams, state: PeerConnection.IceConnectionState) {}
-        override fun disConnect(talkPlusCallParams: TalkplusCallParams) {}
-        override fun error(talkPlusCallParams: TalkplusCallParams, message: String) {}
+        override fun failed(talkPlusCallParams: TalkPlusCallParams) {}
+        override fun stateChanged(talkPlusCallParams: TalkPlusCallParams, state: PeerConnection.IceConnectionState) {}
+        override fun disConnect(talkPlusCallParams: TalkPlusCallParams) {}
+        override fun error(talkPlusCallParams: TalkPlusCallParams, message: String) {}
     }
 
     private fun toggleVideo() {
@@ -217,7 +217,7 @@ class CallActivity : AppCompatActivity() {
 
     private fun setRtcClient(tpRtcConfiguration: TPRtcConfiguration) {
         tpWebRTCClient = TPWebRTCClient(tpRtcConfiguration).apply {
-            setTalkplusCallParamsParams(callViewModel.talkPlusCallParams)
+            this.setTalkPlusCallParamsParams(callViewModel.talkPlusCallParams)
             setDirectCallListener(directCallListener)
         }
         startConnect()
@@ -226,6 +226,41 @@ class CallActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         TPFirebaseMessagingService.isCalling = false
+    }
+
+    private fun makeCall() {
+        tpWebRTCClient.makeCall(callViewModel.talkPlusCallParams, object : OnCallResult {
+            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
+            override fun onFailure(reason: String) { showToast(reason) }
+        })
+    }
+
+    private fun acceptCall() {
+        tpWebRTCClient.acceptCall(object : OnCallResult {
+            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
+            override fun onFailure(reason: String) { showToast(reason) }
+        })
+    }
+
+    private fun endCall() {
+        tpWebRTCClient.endCall(object : OnCallResult {
+            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
+            override fun onFailure(reason: String) { showToast(reason) }
+        })
+    }
+
+    private fun cancel() {
+        tpWebRTCClient.cancel(object : OnCallResult {
+            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
+            override fun onFailure(reason: String) { showToast(reason) }
+        })
+    }
+
+    private fun decline() {
+        tpWebRTCClient.decline(object : OnCallResult {
+            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
+            override fun onFailure(reason: String) { showToast(reason) }
+        })
     }
 
     companion object {
