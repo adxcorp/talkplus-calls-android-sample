@@ -78,7 +78,7 @@ dependencies {
 ### Functions
 ```kotlin
 // 영상통화 요청 
-makeCall(talkPlusCallParams: TalkPlusCallParams, object : OnCallResult {
+directCall.makeCall(talkPlusCallParams: TalkPlusCallParams, object : OnCallResult {
     override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) {  }
     override fun onFailure(reason: String) {  }
 })
@@ -86,39 +86,44 @@ makeCall(talkPlusCallParams: TalkPlusCallParams, object : OnCallResult {
 
 ```kotlin
 // 영상통화 요청에 대한 수락
-acceptCall(object : OnCallResult {
+directCall.acceptCall(object : OnCallResult {
     override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { }
     override fun onFailure(reason: String) { }
 ```
 
 ```kotlin
 // 영상통화 종료
-endCall(object : OnCallResult {
+directCall.endCall(object : OnCallResult {
     override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) {  }
     override fun onFailure(reason: String) {  }
 })
 
 // 영상통화 거절
-decline(object : OnCallResult {
+directCall.decline(object : OnCallResult {
     override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) {  }
     override fun onFailure(reason: String) {  }
 })
 
 // 영상통화 취소
-cancel(object : OnCallResult {
+directCall.cancel(object : OnCallResult {
     override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) {  }
     override fun onFailure(reason: String) {  }
 })
 ```
 
 ```kotlin
-// 영상통화 비디오, 오디오 on, off
-enableVideo(enabled: Boolean)
-enableAudio(enabled: Boolean)
+// 영상통화 관련 이벤트를 수신하기 위한 리스너 등록
+directCall.setDirectCallListener(directCallListener: DirectCallListener)
 ```
 
 ```kotlin
-// Push Noticiation Payload 데이터 처리
+// 영상통화 비디오, 오디오 on, off
+directCall.enableVideo(enabled: Boolean)
+directCall.enableAudio(enabled: Boolean)
+```
+
+```kotlin
+// Push Noticiation Payload 데이터 처리 (FirebaseMessageService)
 TalkPlus.getNotificationPayload(notificationLink, object : TalkPlus.CallbackListener<TPNotificationPayload> {
     override fun onSuccess(tpNotificationPayload: TPNotificationPayload) {  }
     override fun onFailure(errorCode: Int, e: Exception) {  }
@@ -137,6 +142,7 @@ interface DirectCallListener {
     fun stateChanged(talkPlusCallParams: TalkPlusCallParams, state: PeerConnection.IceConnectionState) // 통화 연결 상태 확인
 }
 ```
+
 ### 작성자
 Neptune Company
 
