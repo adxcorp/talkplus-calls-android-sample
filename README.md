@@ -137,3 +137,8 @@ interface DirectCallListener {
     fun stateChanged(talkPlusCallParams: TalkPlusCallParams, state: PeerConnection.IceConnectionState) // 통화 연결 상태 확인
 }
 ```
+### 작성자
+Neptune Company
+
+### 라이선스
+talkplus-calls-android SDK는 MIT 라이선스에 따라 사용할 수 있습니다.
