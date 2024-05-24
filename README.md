@@ -1,7 +1,6 @@
 # talkplus-webrtc-android
 ![Platform](https://img.shields.io/badge/platform-Android-green.svg)
 ![Languages](https://img.shields.io/badge/language-Kotlin-violet.svg)
-![Languages](https://img.shields.io/badge/language-Kotlin-violet.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sendbird/quickstart-calls-ios/blob/develop/LICENSE.md)
 ## talkplus-webrtc-android SDK소개
 Android용 TalkPlus WebRTC SDK는 Kotlin 언어로 작성되었으며, Android 클라이언트 앱에 음성 및 영상 통화 기능을 구축하는데 사용할 수 있습니다. 이 저장소에서는 TalkPlus WebRTC SDK를 프로젝트에 구현하기 전에 필요한 몇 가지 절차와 Kotlin 언어를 활용하여 작성된 샘플 앱을 찾을 수 있습니다.
