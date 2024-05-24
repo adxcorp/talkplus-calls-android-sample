@@ -2,6 +2,7 @@ package com.neptune.talkplus_calls_android_sample.feature.call
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Lifecycle
@@ -12,9 +13,9 @@ import com.neptune.talkplus_calls_android_sample.R
 import com.neptune.talkplus_calls_android_sample.background.TPFirebaseMessagingService
 import com.neptune.talkplus_calls_android_sample.commons.Constant.TEST_CHANNEL_ID
 import com.neptune.talkplus_calls_android_sample.databinding.ActivityCallBinding
-import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
-import com.neptune.talkplus_calls_android_sample.extensions.intentSerializable
-import com.neptune.talkplus_calls_android_sample.extensions.showToast
+import com.neptune.talkplus_calls_android_sample.commons.extensions.closeNotification
+import com.neptune.talkplus_calls_android_sample.commons.extensions.intentSerializable
+import com.neptune.talkplus_calls_android_sample.commons.extensions.showToast
 import com.neptune.talkpluscallsandroid.webrtc.core.TPWebRTCClient
 import com.neptune.talkpluscallsandroid.webrtc.event.DirectCallListener
 import com.neptune.talkpluscallsandroid.webrtc.event.OnCallResult
@@ -62,7 +63,6 @@ class CallActivity : AppCompatActivity() {
     }
 
     private fun setClickListener() = with(binding) {
-        surfaceLocal.setOnClickListener { makeCall() }
         ivAudio.setOnClickListener { toggleAudio() }
         ivVideo.setOnClickListener { toggleVideo() }
         ivEndCall.setOnClickListener {
@@ -89,6 +89,7 @@ class CallActivity : AppCompatActivity() {
                     INTENT_EXTRA_NOTIFICATION_PAYLOAD,
                     TPNotificationPayload::class.java
                 )?.let { payload ->
+                    Log.d(TAG, payload.toString())
                     callViewModel.setTalkplusCall(
                         TalkPlusCallParams(
                             callerId = payload.callerId,
@@ -142,7 +143,7 @@ class CallActivity : AppCompatActivity() {
 
     private val directCallListener: DirectCallListener = object : DirectCallListener {
         override fun inComing(talkPlusCallParams: TalkPlusCallParams) {
-            tpWebRTCClient.setTalkPlusCallParamsParams(talkPlusCallParams.copy(uuid = talkPlusCallParams.uuid))
+            tpWebRTCClient.setTalkPlusCallParams(talkPlusCallParams.copy(uuid = talkPlusCallParams.uuid))
             showAcceptDialog()
             alert?.show()
         }
@@ -217,7 +218,7 @@ class CallActivity : AppCompatActivity() {
 
     private fun setRtcClient(tpRtcConfiguration: TPRtcConfiguration) {
         tpWebRTCClient = TPWebRTCClient(tpRtcConfiguration).apply {
-            this.setTalkPlusCallParamsParams(callViewModel.talkPlusCallParams)
+            this.setTalkPlusCallParams(callViewModel.talkPlusCallParams)
             setDirectCallListener(directCallListener)
         }
         startConnect()
@@ -238,7 +239,10 @@ class CallActivity : AppCompatActivity() {
     private fun acceptCall() {
         tpWebRTCClient.acceptCall(object : OnCallResult {
             override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
-            override fun onFailure(reason: String) { showToast(reason) }
+            override fun onFailure(reason: String) {
+                Log.d(TAG, reason)
+                showToast(reason)
+            }
         })
     }
 

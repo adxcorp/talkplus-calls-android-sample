@@ -1,4 +1,4 @@
-package com.neptune.talkplus_calls_android_sample.extensions
+package com.neptune.talkplus_calls_android_sample.commons.extensions
 
 import android.content.Intent
 import android.os.Build

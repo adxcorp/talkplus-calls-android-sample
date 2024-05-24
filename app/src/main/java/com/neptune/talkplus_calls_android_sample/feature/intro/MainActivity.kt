@@ -8,9 +8,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import com.neptune.talkplus_calls_android_sample.databinding.ActivityMainBinding
-import com.neptune.talkplus_calls_android_sample.extensions.checkPermissionsGranted
-import com.neptune.talkplus_calls_android_sample.extensions.requirePermission
-import com.neptune.talkplus_calls_android_sample.extensions.showToast
+import com.neptune.talkplus_calls_android_sample.commons.extensions.checkPermissionsGranted
+import com.neptune.talkplus_calls_android_sample.commons.extensions.requirePermission
+import com.neptune.talkplus_calls_android_sample.commons.extensions.showToast
 import com.neptune.talkplus_calls_android_sample.feature.call.CallActivity
 
 class MainActivity : AppCompatActivity() {

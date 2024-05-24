@@ -11,7 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import com.neptune.talkplus_calls_android_sample.extensions.closeNotification
+import com.neptune.talkplus_calls_android_sample.commons.extensions.closeNotification
 import com.neptune.talkplus_calls_android_sample.feature.call.CallActivity
 import com.neptune.talkplus_calls_android_sample.feature.call.DeclineActivity
 import io.talkplus.TalkPlus
