@@ -7,7 +7,7 @@
     tools:context=".feature.intro.MainActivity">
 
     <EditText
-        android:text="test4"
+        android:text="test1"
         android:id="@+id/et_caller_id"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -18,7 +18,7 @@
         app:layout_constraintStart_toStartOf="@+id/et_callee_id"></EditText>
 
     <EditText
-        android:text="test5"
+        android:text="test2"
         android:hint="calleeId"
         android:id="@+id/et_callee_id"
         android:layout_width="0dp"

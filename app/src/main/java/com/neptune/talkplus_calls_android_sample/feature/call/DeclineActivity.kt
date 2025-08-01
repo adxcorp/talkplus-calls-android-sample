@@ -18,6 +18,10 @@ import io.talkplus.entity.user.TPNotificationPayload
 import io.talkplus.entity.user.TPUser
 import io.talkplus.internal.api.TalkPlusImpl
 import io.talkplus.params.TPLoginParams
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.lang.Exception
 
 class DeclineActivity : AppCompatActivity() {
@@ -28,23 +32,7 @@ class DeclineActivity : AppCompatActivity() {
         val notificationManager = application.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(TPFirebaseMessagingService.NOTIFICATION_ID)
         TPFirebaseMessagingService.isCalling = false
-        startNotification()
-    }
-
-    private fun startNotification() {
-        val params: TPLoginParams = TPLoginParams.Builder("test5", TPLoginParams.LoginType.ANONYMOUS)
-            .setUserName("test5")
-            .build()
-
-        TalkPlus.login(params, object : TalkPlus.CallbackListener<TPUser> {
-            override fun onSuccess(tpUer: TPUser) {
-                Log.d(TAG, tpUer.toString())
-                joinChannel()
-            }
-            override fun onFailure(errorCode: Int, exception: Exception) {
-                Log.d(TAG, "$errorCode ${exception.message.toString()}")
-            }
-        })
+        endCall()
     }
 
     private fun endCall() {
@@ -61,22 +49,32 @@ class DeclineActivity : AppCompatActivity() {
                 endReasonCode = 2,
                 endReasonMessage = "Callee Canceled"
             )
-            TalkPlusImpl.sendMessage(Gson().toJson(endCallRequest))
-            finish()
+
+            val params: TPLoginParams = TPLoginParams.Builder(payload.calleeId, TPLoginParams.LoginType.ANONYMOUS)
+                .setUserName(payload.calleeId)
+                .build()
+
+            TalkPlus.login(params, object : TalkPlus.CallbackListener<TPUser> {
+                override fun onSuccess(tpUer: TPUser) {
+                    TalkPlus.joinChannel(TEST_CHANNEL_ID, object : TalkPlus.CallbackListener<TPChannel> {
+                        override fun onSuccess(p0: TPChannel?) {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                delay(1000)
+                                TalkPlusImpl.sendMessage(Gson().toJson(endCallRequest))
+                                finish()
+                            }
+                        }
+
+                        override fun onFailure(p0: Int, p1: Exception?) {
+
+                        }
+                    })
+                }
+                override fun onFailure(errorCode: Int, exception: Exception) {
+                    Log.d(TAG, "$errorCode ${exception.message.toString()}")
+                }
+            })
         }
-    }
-
-    private fun joinChannel() {
-        TalkPlus.joinChannel(TEST_CHANNEL_ID, object : TalkPlus.CallbackListener<TPChannel> {
-            override fun onSuccess(p0: TPChannel?) {
-                Log.d(TAG, p0.toString())
-                endCall()
-            }
-
-            override fun onFailure(p0: Int, p1: Exception?) {
-
-            }
-        })
     }
 
     companion object {

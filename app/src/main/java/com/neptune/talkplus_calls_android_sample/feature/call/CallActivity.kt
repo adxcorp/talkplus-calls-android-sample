@@ -2,7 +2,6 @@ package com.neptune.talkplus_calls_android_sample.feature.call
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.Lifecycle
@@ -21,6 +20,7 @@ import com.neptune.talkpluscallsandroid.webrtc.event.DirectCallListener
 import com.neptune.talkpluscallsandroid.webrtc.event.OnCallResult
 import com.neptune.talkpluscallsandroid.webrtc.model.EndCallInfo
 import com.neptune.talkpluscallsandroid.webrtc.model.EndCallStatus
+import com.neptune.talkpluscallsandroid.webrtc.model.KlatCallParam
 import com.neptune.talkpluscallsandroid.webrtc.model.TalkPlusCallParams
 import io.talkplus.entity.user.TPNotificationPayload
 import io.talkplus.entity.user.TPRtcConfiguration
@@ -73,13 +73,18 @@ class CallActivity : AppCompatActivity() {
             showToast("상대방과의 통화가 끊어졌습니다.")
             reLoadSurfaceView()
         }
+
+        surfaceLocal.setOnClickListener {
+            surfaceLocal.clearImage()
+        }
+
+        surfaceRemote.setOnClickListener {
+            surfaceRemote.clearImage()
+        }
     }
 
     private fun login() {
-        callViewModel.login(
-            userId = callViewModel.talkPlusCallParams.callerId,
-            userName = callViewModel.talkPlusCallParams.callerId
-        )
+        callViewModel.login()
     }
 
     private fun setTalkPlusCallParams() = with(intent) {
@@ -89,26 +94,23 @@ class CallActivity : AppCompatActivity() {
                     INTENT_EXTRA_NOTIFICATION_PAYLOAD,
                     TPNotificationPayload::class.java
                 )?.let { payload ->
-                    Log.d(TAG, payload.toString())
-                    callViewModel.setTalkplusCall(
-                        TalkPlusCallParams(
-                            callerId = payload.callerId,
-                            calleeId = payload.calleeId,
-                            channelId = payload.channelId,
-                            uuid = payload.uuid,
-                            sdp = payload.sdp
-                        )
+                    KlatCallParam.setKlatCallParam(
+                        callerId = payload.callerId,
+                        calleeId = payload.calleeId,
+                        channelId = payload.channelId,
+                        uuid = payload.uuid,
+                        sdp = payload.sdp
                     )
                 } ?: showToast("payload is null")
             }
 
             false -> {
-                callViewModel.setTalkplusCall(
-                    TalkPlusCallParams(
-                        callerId = getStringExtra(INTENT_EXTRA_CALLER_ID) ?: "",
-                        calleeId = getStringExtra(INTENT_EXTRA_CALLEE_ID) ?: "",
-                        channelId = TEST_CHANNEL_ID
-                    )
+                KlatCallParam.setKlatCallParam(
+                    callerId = getStringExtra(INTENT_EXTRA_CALLER_ID) ?: "",
+                    calleeId = getStringExtra(INTENT_EXTRA_CALLEE_ID) ?: "",
+                    channelId = TEST_CHANNEL_ID,
+                    uuid = "",
+                    sdp = ""
                 )
             }
         }
@@ -143,7 +145,8 @@ class CallActivity : AppCompatActivity() {
 
     private val directCallListener: DirectCallListener = object : DirectCallListener {
         override fun inComing(talkPlusCallParams: TalkPlusCallParams) {
-            tpWebRTCClient.setTalkPlusCallParams(talkPlusCallParams.copy(uuid = talkPlusCallParams.uuid))
+            KlatCallParam.talkPlusCallParams.uuid = talkPlusCallParams.uuid
+//            tpWebRTCClient.setTalkPlusCallParams(talkPlusCallParams.copy(uuid = talkPlusCallParams.uuid))
             showAcceptDialog()
             alert?.show()
         }
@@ -157,6 +160,7 @@ class CallActivity : AppCompatActivity() {
             callViewModel.isConnected = false
             when (endCallInfo.endReasonCode) {
                 EndCallStatus.UNKNOWN.code -> showToast("비정상 종료")
+
                 EndCallStatus.COMPLETED.code -> {
                     reLoadSurfaceView()
                     showToast("상대방과의 통화가 끊어졌습니다.")
@@ -200,25 +204,14 @@ class CallActivity : AppCompatActivity() {
     }
 
     private fun reLoadSurfaceView() {
-        binding.surfaceRemote.apply {
-            clearImage()
-            release()
-        }
-
-        binding.surfaceLocal.apply {
-            clearImage()
-            release()
-        }
-
         binding.pbLoading.visibility = View.VISIBLE
-
         tpWebRTCClient.setRemoteVideo(binding.surfaceRemote)
         tpWebRTCClient.setLocalVideo(binding.surfaceLocal)
     }
 
     private fun setRtcClient(tpRtcConfiguration: TPRtcConfiguration) {
         tpWebRTCClient = TPWebRTCClient(tpRtcConfiguration).apply {
-            this.setTalkPlusCallParams(callViewModel.talkPlusCallParams)
+//            this.setTalkPlusCallParams(callViewModel.talkPlusCallParams)
             setDirectCallListener(directCallListener)
         }
         startConnect()
@@ -230,7 +223,7 @@ class CallActivity : AppCompatActivity() {
     }
 
     private fun makeCall() {
-        tpWebRTCClient.makeCall(callViewModel.talkPlusCallParams, object : OnCallResult {
+        tpWebRTCClient.makeCall(object : OnCallResult {
             override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
             override fun onFailure(reason: String) { showToast(reason) }
         })
@@ -238,9 +231,10 @@ class CallActivity : AppCompatActivity() {
 
     private fun acceptCall() {
         tpWebRTCClient.acceptCall(object : OnCallResult {
-            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) { showToast(talkPlusCallParams.toString()) }
+            override fun onSuccess(talkPlusCallParams: TalkPlusCallParams) {
+                showToast(talkPlusCallParams.toString())
+            }
             override fun onFailure(reason: String) {
-                Log.d(TAG, reason)
                 showToast(reason)
             }
         })

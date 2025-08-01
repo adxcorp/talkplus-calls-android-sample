@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "21456441928",
-    "project_id": "talkplus-calls-android-sample",
-    "storage_bucket": "talkplus-calls-android-sample.appspot.com"
+    "project_number": "609629573739",
+    "project_id": "talkplus-calls-android-s-a7f17",
+    "storage_bucket": "talkplus-calls-android-s-a7f17.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:21456441928:android:1e97b01709dd21d315fe7d",
+        "mobilesdk_app_id": "1:609629573739:android:6618cc50527d4aadf8172e",
         "android_client_info": {
           "package_name": "com.neptune.talkplus_calls_android_sample"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyACdbCA43DvuimQCjksBN6RYdbxUXCMUX0"
+          "current_key": "AIzaSyA-BXZK-w861Ejv-WeFmBrePK0wqWQB_7U"
         }
       ],
       "services": {

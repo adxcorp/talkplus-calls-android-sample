@@ -54,5 +54,5 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging:23.4.1")
 
-    implementation("com.github.adxcorp:talkplus-calls-android:0.1.0")
+    implementation("com.github.adxcorp:talkplus-calls-android:0.2.0")
 }
